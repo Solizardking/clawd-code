@@ -1,1 +1,0 @@
-{"version":3,"file":"generateSessionName.d.ts","sourceRoot":"","sources":["../../../src/commands/rename/generateSessionName.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,wBAAwB,CAAA;AAQrD,wBAAsB,mBAAmB,CACvC,QAAQ,EAAE,OAAO,EAAE,EACnB,MAAM,EAAE,WAAW,GAClB,OAAO,CAAC,MAAM,GAAG,IAAI,CAAC,CAsDxB"}

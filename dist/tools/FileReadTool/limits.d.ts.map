@@ -1,1 +1,0 @@
-{"version":3,"file":"limits.d.ts","sourceRoot":"","sources":["../../../src/tools/FileReadTool/limits.ts"],"names":[],"mappings":"AAiBA,eAAO,MAAM,yBAAyB,QAAQ,CAAA;AAiB9C,MAAM,MAAM,iBAAiB,GAAG;IAC9B,SAAS,EAAE,MAAM,CAAA;IACjB,YAAY,EAAE,MAAM,CAAA;IACpB,sBAAsB,CAAC,EAAE,OAAO,CAAA;IAChC,kBAAkB,CAAC,EAAE,OAAO,CAAA;CAC7B,CAAA;AAED;;;;;;;;;;GAUG;AACH,eAAO,MAAM,2BAA2B,KAuCtC,CAAA"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"TeleportStash.d.ts","sourceRoot":"","sources":["../../src/components/TeleportStash.tsx"],"names":[],"mappings":"AACA,OAAO,KAA8B,MAAM,OAAO,CAAC;AAQnD,KAAK,kBAAkB,GAAG;IACxB,kBAAkB,EAAE,MAAM,IAAI,CAAC;IAC/B,QAAQ,EAAE,MAAM,IAAI,CAAC;CACtB,CAAC;AACF,wBAAgB,aAAa,CAAC,EAC5B,kBAAkB,EAClB,QAAQ,EACT,EAAE,kBAAkB,GAAG,KAAK,CAAC,SAAS,CAkGtC"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"useBackgroundTaskNavigation.d.ts","sourceRoot":"","sources":["../../src/hooks/useBackgroundTaskNavigation.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,aAAa,EAAE,MAAM,iCAAiC,CAAA;AA2D/D;;;;;GAKG;AACH,wBAAgB,2BAA2B,CAAC,OAAO,CAAC,EAAE;IACpD,qBAAqB,CAAC,EAAE,MAAM,IAAI,CAAA;CACnC,GAAG;IAAE,aAAa,EAAE,CAAC,CAAC,EAAE,aAAa,KAAK,IAAI,CAAA;CAAE,CAsLhD"}

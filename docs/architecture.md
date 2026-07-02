@@ -1,224 +1,164 @@
 # Architecture
 
-> Deep-dive into how Claude Code is structured internally.
+This repository currently contains two layers:
 
----
+1. The active Clawd Code headless CLI, wired by `package.json` to `src/cli.ts`.
+2. A large retained Claude Code/Ink codebase under `src/main.tsx`, `src/QueryEngine.ts`, `src/Tool.ts`, `src/tools/`, `src/commands/`, `src/bridge/`, and related subsystems.
 
-## High-Level Overview
+The distinction matters. The npm scripts in this checkout run the headless Clawd CLI:
 
-Claude Code is a terminal-native AI coding assistant built as a single-binary CLI. The architecture follows a pipeline model:
-
-```
-User Input → CLI Parser → Query Engine → LLM API → Tool Execution Loop → Terminal UI
-```
-
-The entire UI layer is built with **React + Ink** (React for the terminal), making it a fully reactive CLI application with components, hooks, state management, and all the patterns you'd expect in a React web app — just rendered to the terminal.
-
----
-
-## Core Pipeline
-
-### 1. Entrypoint (`src/main.tsx`)
-
-The CLI parser is built with [Commander.js](https://github.com/tj/commander.js) (`@commander-js/extra-typings`). On startup, it:
-
-- Fires parallel prefetch side-effects (MDM settings, Keychain, API preconnect) before heavy module imports
-- Parses CLI arguments and flags
-- Initializes the React/Ink renderer
-- Hands off to the REPL launcher (`src/replLauncher.tsx`)
-
-### 2. Initialization (`src/entrypoints/`)
-
-| File | Role |
+| Path | Role |
 |------|------|
-| `cli.tsx` | CLI session orchestration — the main path from launch to REPL |
-| `init.ts` | Config, telemetry, OAuth, MDM policy initialization |
-| `mcp.ts` | MCP server mode entrypoint (Claude Code as an MCP server) |
-| `sdk/` | Agent SDK — programmatic API for embedding Claude Code |
+| `package.json` | `npm run dev` executes `tsx src/cli.ts`; `npm run build` runs `tsc`; bin output is `dist/cli.js`. |
+| `src/cli.ts` | Active argv parser, provider/model selection, mode dispatch, and direct command map. |
+| `src/commands.ts` | Active Clawd/Solana direct command implementations such as `cmdGoal`, `cmdArena`, `cmdWallet`, `cmdChain`, and `cmdChart`. |
+| `src/commands copy.ts` | Retained upstream slash-command registry with `getCommands()` and `filterCommandsForRemoteMode()`. |
+| `src/main.tsx` | Retained upstream Ink/Commander entrypoint. It imports `getCommands` from `./commands.js`, so it currently matches `src/commands copy.ts` better than the active `src/commands.ts`. |
 
-Startup performs parallel initialization: MDM policy reads, Keychain prefetch, feature flag checks, then core init.
+## Active Runtime
 
-### 3. Query Engine (`src/QueryEngine.ts`, ~46K lines)
+The active CLI pipeline is:
 
-The heart of Claude Code. Handles:
-
-- **Streaming responses** from the Anthropic API
-- **Tool-call loops** — when the LLM requests a tool, execute it and feed the result back
-- **Thinking mode** — extended thinking with budget management
-- **Retry logic** — automatic retries with backoff for transient failures
-- **Token counting** — tracks input/output tokens and cost per turn
-- **Context management** — manages conversation history and context windows
-
-### 4. Tool System (`src/Tool.ts` + `src/tools/`)
-
-Every capability Claude can invoke is a **tool**. Each tool is self-contained with:
-
-- **Input schema** (Zod validation)
-- **Permission model** (what needs user approval)
-- **Execution logic** (the actual implementation)
-- **UI components** (how invocation/results render in the terminal)
-
-Tools are registered in `src/tools.ts` and discovered by the Query Engine during tool-call loops.
-
-See [Tools Reference](tools.md) for the complete catalog.
-
-### 5. Command System (`src/commands.ts` + `src/commands/`)
-
-User-facing slash commands (`/commit`, `/review`, `/mcp`, etc.) that can be typed in the REPL. Three types:
-
-| Type | Description | Example |
-|------|-------------|---------|
-| **PromptCommand** | Sends a formatted prompt to the LLM with injected tools | `/review`, `/commit` |
-| **LocalCommand** | Runs in-process, returns plain text | `/cost`, `/version` |
-| **LocalJSXCommand** | Runs in-process, returns React JSX | `/doctor`, `/install` |
-
-Commands are registered in `src/commands.ts` and invoked via `/command-name` in the REPL.
-
-See [Commands Reference](commands.md) for the complete catalog.
-
----
-
-## State Management
-
-Claude Code uses a **React context + custom store** pattern:
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `AppState` | `src/state/AppStateStore.ts` | Global mutable state object |
-| Context Providers | `src/context/` | React context for notifications, stats, FPS |
-| Selectors | `src/state/` | Derived state functions |
-| Change Observers | `src/state/onChangeAppState.ts` | Side-effects on state changes |
-
-The `AppState` object is passed into tool contexts, giving tools access to conversation history, settings, and runtime state.
-
----
-
-## UI Layer
-
-### Components (`src/components/`, ~140 components)
-
-- Functional React components using Ink primitives (`Box`, `Text`, `useInput()`)
-- Styled with [Chalk](https://github.com/chalk/chalk) for terminal colors
-- React Compiler enabled for optimized re-renders
-- Design system primitives in `src/components/design-system/`
-
-### Screens (`src/screens/`)
-
-Full-screen UI modes:
-
-| Screen | Purpose |
-|--------|---------|
-| `REPL.tsx` | Main interactive REPL (the default screen) |
-| `Doctor.tsx` | Environment diagnostics (`/doctor`) |
-| `ResumeConversation.tsx` | Session restore (`/resume`) |
-
-### Hooks (`src/hooks/`, ~80 hooks)
-
-Standard React hooks pattern. Notable categories:
-
-- **Permission hooks** — `useCanUseTool`, `src/hooks/toolPermission/`
-- **IDE integration** — `useIDEIntegration`, `useIdeConnectionStatus`, `useDiffInIDE`
-- **Input handling** — `useTextInput`, `useVimInput`, `usePasteHandler`, `useInputBuffer`
-- **Session management** — `useSessionBackgrounding`, `useRemoteSession`, `useAssistantHistory`
-- **Plugin/skill hooks** — `useManagePlugins`, `useSkillsChange`
-- **Notification hooks** — `src/hooks/notifs/` (rate limits, deprecation warnings, etc.)
-
----
-
-## Configuration & Schemas
-
-### Config Schemas (`src/schemas/`)
-
-Zod v4-based schemas for all configuration:
-
-- User settings
-- Project-level settings
-- Organization/enterprise policies
-- Permission rules
-
-### Migrations (`src/migrations/`)
-
-Handles config format changes between versions — reads old configs and transforms them to the current schema.
-
----
-
-## Build System
-
-### Bun Runtime
-
-Claude Code runs on [Bun](https://bun.sh) (not Node.js). Key implications:
-
-- Native JSX/TSX support without a transpilation step
-- `bun:bundle` feature flags for dead-code elimination
-- ES modules with `.js` extensions (Bun convention)
-
-### Feature Flags (Dead Code Elimination)
-
-```typescript
-import { feature } from 'bun:bundle'
-
-// Code inside inactive feature flags is completely stripped at build time
-if (feature('VOICE_MODE')) {
-  const voiceCommand = require('./commands/voice/index.js').default
-}
+```text
+argv
+  -> src/cli.ts
+  -> src/env.ts
+  -> src/grok-models.ts plus provider adapters
+  -> direct command or mode class
+  -> provider API, Solana RPC, local file output, or helper CLI
 ```
 
-Notable flags:
+Important active files:
 
-| Flag | Feature |
+| File | Purpose |
 |------|---------|
-| `PROACTIVE` | Proactive agent mode (autonomous actions) |
-| `KAIROS` | Kairos subsystem |
-| `BRIDGE_MODE` | IDE bridge integration |
-| `DAEMON` | Background daemon mode |
-| `VOICE_MODE` | Voice input/output |
-| `AGENT_TRIGGERS` | Triggered agent actions |
-| `MONITOR_TOOL` | Monitoring tool |
-| `COORDINATOR_MODE` | Multi-agent coordinator |
-| `WORKFLOW_SCRIPTS` | Workflow automation scripts |
+| `src/cli.ts` | Parses modes, global commands, provider flags, model flags, streaming flags, and output format. |
+| `src/env.ts` | Loads `.env`, `~/.clawd-code/.env`, `~/.grok/config.toml`, `./.grok/config.toml`, then `process.env`. |
+| `src/grok-models.ts` | Active model registry for Z.AI, xAI, Anthropic, DeepSeek, and OpenRouter. |
+| `src/zai.ts` | Z.AI OpenAI-compatible chat, streaming, vision, image, and slide-agent helpers. |
+| `src/xai.ts` | xAI chat completions, Responses API, streaming, and `/models` ping. |
+| `src/anthropic.ts` | Native Anthropic Messages client with blocking and SSE streaming. |
+| `src/openrouter.ts` | OpenRouter chat, streaming, auto-routing, Nemo routes, and Fable aliases. |
+| `src/deepseek.ts` | DeepSeek OpenAI-compatible blocking chat client. |
+| `src/telegram.ts` | Telegram Bot API long-poll relay into the Z.AI chat pipeline, restricted by allowlisted chat ID. |
+| `src/solana-harness.ts` | Read-first Solana JSON-RPC wrapper with explicit mutation gates. |
+| `src/wallet.ts` | Local Ed25519 wallet creation and listing under `~/.clawd-code/wallets`. |
+| `src/arena.ts` | Cheshire Terminal Metaplex agent identity, registry, fetch, review, and health client. |
+| `src/x402.ts` | Simple x402 request helper using `X-402-*` headers and optional bearer secret. |
+| `src/verify.ts` | Environment preflight for Node, provider keys, Helius, Vulcan, safety gates, config, and workspace. |
 
-### Lazy Loading
+## Active Modes
 
-Heavy modules are deferred via dynamic `import()` until first use:
+Modes live in `src/modes/` and are selected by the first CLI argument or by `/goal`.
 
-- OpenTelemetry (~400KB)
-- gRPC (~700KB)
-- Other optional dependencies
+| Mode | File | Summary |
+|------|------|---------|
+| `code` | `src/modes/code.ts` | Generates TypeScript/Solana code, supports streaming for Z.AI, xAI, Anthropic, and OpenRouter, then writes `outputs/clawd-code-*.ts`. |
+| `chain` | `src/modes/chain.ts` | Solana RPC harness for status, balances, accounts, transactions, token accounts, fees, blockhash, simulation, gated send, raw RPC, and Z.AI-assisted planning. |
+| `chart` | `src/modes/chart.ts` | GLM chart/report planner with GLM-5V image analysis and Z.AI slide/poster agent export. |
+| `trade` | `src/modes/trade.ts` | Phoenix/Vulcan perps workflow in paper mode by default, with GLM-5V chart analysis and explicit live-trading gates. |
+| `research` | `src/modes/research.ts` | Source-aware research using Z.AI by default, plus xAI Responses multi-agent, Anthropic, DeepSeek, and OpenRouter paths. |
+| `image` | `src/modes/image.ts` | Z.AI GLM-Image or CogView image generation with DALL-E and Gemini placeholder fallbacks. |
+| `voice` | `src/modes/voice.ts` | Local TTS through sherpa-onnx or `sag`, plus xAI voice-agent text REPL with Solana tools. |
+| `repl` | `src/modes/repl.ts` | Readline multi-turn REPL with `.mode`, `.model`, `.provider`, `.thinking`, `.effort`, `.history`, `.clear`, and `.help`. |
 
----
+## Model Registry
 
-## Error Handling & Telemetry
+The active model registry is `src/grok-models.ts`.
 
-### Telemetry (`src/services/analytics/`)
+| Provider | Active models and defaults |
+|----------|----------------------------|
+| Z.AI | Default provider. `glm-5.2` is the default for code, REPL, trade, and research. Also includes `glm-5-turbo`, `glm-5v-turbo`, `glm-4.6v-flashx`, `glm-image`, and `cogview-4`. |
+| xAI | `grok-4.3`, `grok-4.3-fast`, `grok-4.20-non-reasoning`, `grok-4.20-multi-agent`, `grok-4.20-reasoning`, `grok-3-mini`, `grok-3`, `grok-code-fast-1`, `grok-imagine-image-quality`, and `grok-voice-think-fast-1.0`. |
+| Anthropic | Active Clawd registry includes `claude-sonnet-4-6`, `claude-opus-4-8`, and `claude-haiku-4-5-20251001`. The retained upstream model utilities under `src/utils/model/` separately map Claude 3.5/3.7, Haiku 4.5, Sonnet 4/4.5/4.6, and Opus 4/4.1/4.5/4.6 across first-party, Bedrock, Vertex, and Foundry. |
+| DeepSeek | `deepseek-v4-pro` and `deepseek-v4-flash`. |
+| OpenRouter | `auto`, Nemo balanced/intelligent/fast routes, `anthropic/claude-fable-5`, and `~anthropic/claude-fable-latest`. |
 
-- [GrowthBook](https://www.growthbook.io/) for feature flags and A/B testing
-- [OpenTelemetry](https://opentelemetry.io/) for distributed tracing and metrics
-- Custom event tracking for usage analytics
+Provider selection is normalized in `src/cli.ts`: `z`, `zai`, `z.ai`, and `glm` map to Z.AI; `or` maps to OpenRouter; `ds` maps to DeepSeek; `claude` and `ant` map to Anthropic.
 
-### Cost Tracking (`src/cost-tracker.ts`)
+## Retained Upstream Runtime
 
-Tracks token usage and estimated cost per conversation turn. Accessible via the `/cost` command.
+The upstream-style runtime is still present and is useful for reference or future reintegration:
 
-### Diagnostics (`/doctor` command)
+```text
+src/main.tsx
+  -> src/entrypoints/init.ts
+  -> src/replLauncher.tsx
+  -> src/screens/REPL.tsx
+  -> src/QueryEngine.ts
+  -> src/services/api/claude.ts
+  -> src/services/tools/toolOrchestration.ts
+  -> src/tools.ts and src/tools/*
+```
 
-The `Doctor.tsx` screen runs environment checks: API connectivity, authentication, tool availability, MCP server status, and more.
+Key retained modules:
 
----
+| Area | Paths |
+|------|-------|
+| Ink UI | `src/ink/`, `src/components/`, `src/screens/`, `src/hooks/`, `src/context/`, `src/state/` |
+| Agent tool loop | `src/QueryEngine.ts`, `src/Tool.ts`, `src/tools.ts`, `src/tools/`, `src/services/tools/` |
+| Slash commands | `src/commands/`, `src/commands copy.ts`, `src/types/command.ts` |
+| Remote and bridge | `src/bridge/`, `src/remote/`, `src/server/`, `src/cli/transports/` |
+| MCP | `src/services/mcp/`, `src/tools/MCPTool/`, `src/tools/ListMcpResourcesTool/`, `src/tools/ReadMcpResourceTool/`, `src/tools/ToolSearchTool/` |
+| Plugins and skills | `src/plugins/`, `src/services/plugins/`, `src/skills/`, `src/outputStyles/` |
+| Memory and compaction | `src/memdir/`, `src/services/compact/`, `src/services/extractMemories/`, `src/services/teamMemorySync/` |
+| Tasks and agents | `src/tasks/`, `src/tools/AgentTool/`, `src/tools/Task*Tool/`, `src/coordinator/` |
+| Permissions | `src/hooks/toolPermission/`, `src/components/permissions/`, `src/types/permissions.ts` |
 
-## Concurrency Model
+## Source Directory Map
 
-Claude Code uses a **single-threaded event loop** (Bun/Node.js model) with:
+| Directory | Current role |
+|-----------|--------------|
+| `assistant/` | Retained Kairos/assistant session history code, feature-gated from `main.tsx`. |
+| `bootstrap/` | Shared process/session state used by upstream runtime and tool loop. |
+| `bridge/` | IDE/claude.ai bridge, remote-control loop, session spawning, JWT refresh, and bridge UI. |
+| `buddy/` | Retained companion UI/prompt assets behind the `BUDDY` feature flag. |
+| `cli/` | Remote IO, structured IO, transports, exit/print helpers, and update code for upstream CLI paths. |
+| `commands/` | Retained upstream slash-command modules. |
+| `components/` | Retained Ink React components, dialogs, permissions UI, MCP UI, settings UI, tasks UI, and diff views. |
+| `constants/` | Shared constants for prompts, betas, products, tools, keys, files, system sections, and API limits. |
+| `context/` | React contexts for overlays, notifications, stats, voice, mailbox, and queued messages. |
+| `coordinator/` | Multi-agent coordinator mode state. |
+| `entrypoints/` | Upstream CLI, MCP server, SDK, sandbox type, and init entrypoints. |
+| `hooks/` | Upstream React hooks for input, tools, settings, IDE, voice, tasks, plugins, skills, history, permissions, and background sessions. |
+| `ink/` | Vendored/custom Ink renderer, terminal events, layout, terminal IO, ANSI handling, hooks, and primitives. |
+| `keybindings/` | Keybinding schemas, defaults, parsing, validation, matching, and provider setup. |
+| `memdir/` | Memory path, scan, prompt, age, and relevance helpers. |
+| `migrations/` | Settings/model migrations, including Sonnet 4.5 to 4.6 and bridge startup migrations. |
+| `modes/` | Active Clawd headless modes. |
+| `moreright/` | UI hook for horizontal overflow behavior. |
+| `native-ts/` | TypeScript-native replacements for color diff, file index, and yoga layout pieces. |
+| `outputStyles/` | Output style directory loader. |
+| `plugins/` | Built-in and bundled plugin registration. |
+| `query/` | Query dependency, config, stop hook, token budget, and transition helpers. |
+| `remote/` | Remote CCR session manager, WebSocket, permission bridge, and SDK message adapter. |
+| `schemas/` | Hook schemas. Most settings schemas live under `src/utils/settings/`. |
+| `screens/` | Retained Ink screens for REPL, doctor, and resume conversation. |
+| `server/` | Direct-connect session creation and web terminal/admin/auth server code. |
+| `services/` | API clients, analytics, compacting, MCP, OAuth, LSP, settings sync, remote settings, x402 services, voice, tips, memory extraction, and more. |
+| `shims/` | Bun bundle, macro, and preload shims. |
+| `skills/` | Bundled skills, disk loading, and MCP skill builders. |
+| `state/` | App state store, selectors, change observers, and teammate view helpers. |
+| `tasks/` | Local shell, local agent, remote agent, in-process teammate, dream, and main-session tasks. |
+| `tools/` | Retained upstream agent tool implementations. |
+| `types/` | Shared TypeScript types for commands, messages, permissions, hooks, plugins, IDs, logs, and generated events. |
+| `upstreamproxy/` | Upstream proxy/relay helpers. |
+| `utils/` | Broad shared utility layer for auth, config, models, settings, permissions, hooks, git, shell parsing, sandboxing, plugins, telemetry, sessions, tasks, and more. |
+| `vim/` | Vim motions, operators, transitions, text objects, and types. |
+| `voice/` | Voice mode feature detection. Active voice mode is in `src/modes/voice.ts`. |
 
-- Async/await for I/O operations
-- React's concurrent rendering for UI updates
-- Web Workers or child processes for CPU-intensive tasks (gRPC, etc.)
-- Tool concurrency safety — each tool declares `isConcurrencySafe()` to indicate if it can run in parallel with other tools
+## Build And Runtime Notes
 
----
+- Runtime target is Node >=18 for the package scripts, not Bun, although retained upstream code contains Bun-specific imports such as `bun:bundle`.
+- The active CLI uses zero runtime dependencies in `package.json` and native `fetch`.
+- The retained upstream runtime imports packages not declared in this package, such as React, Ink-related dependencies, Anthropic SDK types, MCP SDK types, lodash, chalk, and Commander.
+- `src/tools.ts` also has retained upstream imports for tools that are not present in this checkout, including a static `TungstenTool` import. Restore those directories or remove/guard the imports before expecting the retained upstream tool registry to type-check.
+- `webbuild/` was listed in the task request but is not present in the current worktree.
 
 ## See Also
 
-- [Tools Reference](tools.md) — Complete catalog of all 40 agent tools
-- [Commands Reference](commands.md) — Complete catalog of all slash commands
-- [Subsystems Guide](subsystems.md) — Bridge, MCP, permissions, skills, plugins, and more
-- [Exploration Guide](exploration-guide.md) — How to navigate this codebase
+- [Commands Reference](commands.md)
+- [Tools Reference](tools.md)
+- [Bridge Layer](bridge.md)
+- [Subsystems Guide](subsystems.md)
+- [Exploration Guide](exploration-guide.md)

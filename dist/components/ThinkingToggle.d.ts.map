@@ -1,1 +1,0 @@
-{"version":3,"file":"ThinkingToggle.d.ts","sourceRoot":"","sources":["../../src/components/ThinkingToggle.tsx"],"names":[],"mappings":"AAWA,MAAM,MAAM,KAAK,GAAG;IAClB,YAAY,EAAE,OAAO,CAAC;IACtB,QAAQ,EAAE,CAAC,OAAO,EAAE,OAAO,KAAK,IAAI,CAAC;IACrC,QAAQ,CAAC,EAAE,MAAM,IAAI,CAAC;IACtB,iBAAiB,CAAC,EAAE,OAAO,CAAC;CAC7B,CAAC;AACF,wBAAgB,cAAc,CAAC,EAAE,KAAA,OAqIhC"}

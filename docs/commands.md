@@ -1,211 +1,159 @@
 # Commands Reference
 
-> Complete catalog of all slash commands in Claude Code.
+This checkout has two command systems:
 
----
+1. Active headless commands in `src/cli.ts` and `src/commands.ts`.
+2. Retained upstream slash commands in `src/commands/`, with the old registry preserved as `src/commands copy.ts`.
 
-## Overview
+Use `src/cli.ts` as the source of truth for the runnable `clawd-code` package.
 
-Commands are user-facing actions invoked with a `/` prefix in the REPL (e.g., `/commit`, `/review`). They live in `src/commands/` and are registered in `src/commands.ts`.
+## Active CLI Commands
 
-### Command Types
+`src/cli.ts` handles these top-level commands before mode dispatch:
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **PromptCommand** | Sends a formatted prompt to the LLM with injected tools | `/review`, `/commit` |
-| **LocalCommand** | Runs in-process, returns plain text | `/cost`, `/version` |
-| **LocalJSXCommand** | Runs in-process, returns React JSX | `/install`, `/doctor` |
+| Command | Aliases | Source | Summary |
+|---------|---------|--------|---------|
+| `models` | `/models` | `src/cli.ts`, `src/grok-models.ts` | List available models or print the normalized model to persist in `CLAWD_MODEL`. |
+| `provider` | `/provider` | `src/cli.ts` | Show provider/API-key status or switch to `zai`, `xai`, `anthropic`, `openrouter`, or `deepseek`. |
+| `verify` | `/verify` | `src/verify.ts` | Run preflight checks for Node, Z.AI, xAI, Helius, Phoenix, Vulcan, safety gates, config, and workspace. |
+| `inspect` | `/inspect` | `src/cli.ts` | Print config sources, active provider/model, key status, OpenRouter/Z.AI route config, xAI reachability, and per-mode defaults. |
+| `telegram` | `/telegram` | `src/telegram.ts` | Start a Telegram Bot API long-poll relay into Z.AI chat. Requires `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_ID`, and `ZAI_API_KEY`. |
+| `help` | `/help` | `src/commands.ts` | Print active Clawd command help. |
 
-### Command Definition Pattern
+## Active Modes
 
-```typescript
-const command = {
-  type: 'prompt',
-  name: 'my-command',
-  description: 'What this command does',
-  progressMessage: 'working...',
-  allowedTools: ['Bash(git *)', 'FileRead(*)'],
-  source: 'builtin',
-  async getPromptForCommand(args, context) {
-    return [{ type: 'text', text: '...' }]
-  },
-} satisfies Command
-```
+| Mode | Source | Description |
+|------|--------|-------------|
+| `code` | `src/modes/code.ts` | Generates TypeScript/Solana code, supports streaming for Z.AI, xAI, Anthropic, and OpenRouter, then writes to `outputs/`. |
+| `chain` | `src/modes/chain.ts` | Solana read-first RPC harness with gated mutation paths and Z.AI planning/explanation. |
+| `chart` | `src/modes/chart.ts` | GLM chart/report planner with optional image analysis and slide/poster export. |
+| `slides` | `src/commands.ts`, `src/modes/chart.ts` | Runs chart mode with `--slides`. |
+| `poster` | `src/commands.ts`, `src/modes/chart.ts` | Runs chart mode with `--poster`. |
+| `trade` | `src/modes/trade.ts` | Phoenix/Vulcan perps workflow, paper by default, GLM-5V chart analysis, explicit live-trading gates. |
+| `research` | `src/modes/research.ts` | Multi-provider research with Z.AI default, xAI Responses multi-agent, Anthropic, DeepSeek, and OpenRouter routes. |
+| `image` | `src/modes/image.ts` | Z.AI image generation with DALL-E and Gemini placeholder fallbacks. |
+| `voice` | `src/modes/voice.ts` | TTS through sherpa-onnx or `sag`, plus xAI voice-agent mode with `--agent`. |
+| `repl` | `src/modes/repl.ts` | Readline REPL with provider/model/mode switching and persistent in-memory history. |
 
----
+## Active Direct Commands
 
-## Git & Version Control
+These commands are registered in the `directCommands` map in `src/cli.ts` and implemented in `src/commands.ts`.
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/commit` | `commit.ts` | Create a git commit with an AI-generated message |
-| `/commit-push-pr` | `commit-push-pr.ts` | Commit, push, and create a PR in one step |
-| `/branch` | `branch/` | Create or switch git branches |
-| `/diff` | `diff/` | View file changes (staged, unstaged, or against a ref) |
-| `/pr_comments` | `pr_comments/` | View and address PR review comments |
-| `/rewind` | `rewind/` | Revert to a previous state |
+| Command | Slash alias | Implementation | Summary |
+|---------|-------------|----------------|---------|
+| `perps` | `/perps` | `cmdPerps` | Static Phoenix/Vulcan perps dashboard and quick action hints. |
+| `wallet` | `/wallet` | `cmdWallet` | `create`, `list`, `import` hints, and balance-oriented wallet output. |
+| `chain` | `/chain`, `/solana` | `cmdChain` | Delegates to `ChainMode`. |
+| `chart` | `/chart`, `/charts` | `cmdChart` | Delegates to `ChartMode`. |
+| `slides` | `/slides` | `cmdSlides` | Delegates to `ChartMode` with slide export. |
+| `poster` | `/poster` | `cmdPoster` | Delegates to `ChartMode` with poster export. |
+| `send` | `/send` | `cmdSend` | Prints send draft and safety guidance. |
+| `price` | `/price` | `cmdPrice` | Static token price panel for SOL, BTC, ETH, BONK, WIF, USDC, and CLAWD. |
+| `balance` | `/balance` | `cmdBalance` | Static wallet balance snapshot. |
+| `positions` | `/positions` | `cmdPositions` | Static open positions panel. |
+| `funding` | `/funding` | `cmdFunding` | Static perps funding-rate panel. |
+| `signals` | `/signals` | `cmdSignals` | Static composite trading signal panel. |
+| `strategies` | `/strategies` | `cmdStrategies` | Vulcan strategy command hints for TWAP, grid, and TA. |
+| `arena` | `/arena` | `cmdArena` | Cheshire Terminal agent identity and registry workflows. |
+| `agents` | `/agents` | `cmdAgents` | Static Clawd agent registry panel. |
+| `goal` | `/goal` | `cmdGoal` | Natural-language router to trade, chain, chart, research, image, voice, or code mode. |
+| `help` | `/help` | `cmdHelp` | Active command help. |
 
-## Code Quality
+## Chain Subcommands
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/review` | `review.ts` | AI-powered code review of staged/unstaged changes |
-| `/security-review` | `security-review.ts` | Security-focused code review |
-| `/advisor` | `advisor.ts` | Get architectural or design advice |
-| `/bughunter` | `bughunter/` | Find potential bugs in the codebase |
+`ChainMode` supports:
 
-## Session & Context
+| Subcommand | Aliases | Behavior |
+|------------|---------|----------|
+| `status` | `health`, `snapshot` | Shows RPC URL, cluster, commitment, read-only flag, mutation gate, health, version, slot, and blockhash. |
+| `balance` | `bal` | Resolves a wallet/address and prints lamports/SOL. |
+| `account` | `acct` | Prints account owner, lamports, executable status, rent epoch, space, and data summary. |
+| `tx` | `transaction` | Fetches and prints a transaction. |
+| `sigs` | `signatures` | Fetches recent signatures for an address. |
+| `program` | none | Shows program account metadata and optionally program accounts with `--allow-large`. |
+| `token` | none | Shows token supply and largest accounts. |
+| `token-accounts` | `tokens` | Shows token accounts for an owner, with optional mint/program filters. |
+| `fees` | none | Calls `getRecentPrioritizationFees`. |
+| `blockhash` | none | Prints latest blockhash. |
+| `airdrop` | `faucet` | Requests airdrop on non-mainnet clusters. |
+| `simulate` | none | Simulates a base64 transaction. |
+| `send-raw` | none | Sends a base64 transaction only when mutation gates allow it. |
+| `rpc` | none | Raw JSON-RPC call path. |
+| `ask` | `ai`, `plan`, `explain` | Uses Z.AI planning/explanation. |
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/compact` | `compact/` | Compress conversation context to fit more history |
-| `/context` | `context/` | Visualize current context (files, memory, etc.) |
-| `/resume` | `resume/` | Restore a previous conversation session |
-| `/session` | `session/` | Manage sessions (list, switch, delete) |
-| `/share` | `share/` | Share a session via link |
-| `/export` | `export/` | Export conversation to a file |
-| `/summary` | `summary/` | Generate a summary of the current session |
-| `/clear` | `clear/` | Clear the conversation history |
+Mutation RPC is blocked unless `SOLANA_HARNESS_READONLY=false`, `LIVE_TRADING=true`, and `OPERATOR_CONFIRMED=true`.
 
-## Configuration & Settings
+## Arena Subcommands
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/config` | `config/` | View or modify Claude Code settings |
-| `/permissions` | `permissions/` | Manage tool permission rules |
-| `/theme` | `theme/` | Change the terminal color theme |
-| `/output-style` | `output-style/` | Change output formatting style |
-| `/color` | `color/` | Toggle color output |
-| `/keybindings` | `keybindings/` | View or customize keybindings |
-| `/vim` | `vim/` | Toggle vim mode for input |
-| `/effort` | `effort/` | Adjust response effort level |
-| `/model` | `model/` | Switch the active model |
-| `/privacy-settings` | `privacy-settings/` | Manage privacy/data settings |
-| `/fast` | `fast/` | Toggle fast mode (shorter responses) |
-| `/brief` | `brief.ts` | Toggle brief output mode |
+`cmdArena` supports:
 
-## Memory & Knowledge
+| Subcommand | Behavior |
+|------------|----------|
+| `status`, `identity` | Show stored `~/.clawd-code/arena-identity.json`. |
+| `mint` | Mint a Solana Metaplex agent NFT through Cheshire Terminal. Requires `--wallet`. |
+| `register` | Register capabilities, services, x402/A2A/MCP endpoints, and pricing. |
+| `fetch`, `profile` | Fetch any agent profile by asset address. |
+| `review` | Submit a reputation review with proof of payment. |
+| `health`, `ping` | Check Cheshire Terminal developer status endpoint. |
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/memory` | `memory/` | Manage persistent memory (CLAUDE.md files) |
-| `/add-dir` | `add-dir/` | Add a directory to the project context |
-| `/files` | `files/` | List files in the current context |
+## REPL Dot Commands
 
-## MCP & Plugins
+`src/modes/repl.ts` supports:
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/mcp` | `mcp/` | Manage MCP server connections |
-| `/plugin` | `plugin/` | Install, remove, or manage plugins |
-| `/reload-plugins` | `reload-plugins/` | Reload all installed plugins |
-| `/skills` | `skills/` | View and manage skills |
+| Command | Behavior |
+|---------|----------|
+| `.exit`, `.quit` | End the REPL. |
+| `.clear` | Clear in-memory conversation history. |
+| `.mode <code|research|trade|general>` | Switch system prompt mode. |
+| `.model <id>` | Normalize and switch model, including provider inference for Claude, GLM, and OpenRouter/Nemo IDs. |
+| `.provider <zai|xai|anthropic|openrouter|deepseek>` | Switch provider and reset to that provider's default model. |
+| `.thinking [value]` | Show or set Z.AI thinking mode. |
+| `.effort [value]` | Show or set Z.AI reasoning effort. |
+| `.history` | Print recent history snippets. |
+| `.help` | Print REPL help. |
 
-## Authentication
+## Provider And Model Flags
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/login` | `login/` | Authenticate with Anthropic |
-| `/logout` | `logout/` | Sign out |
-| `/oauth-refresh` | `oauth-refresh/` | Refresh OAuth tokens |
+Active flags parsed in `src/cli.ts`:
 
-## Tasks & Agents
+| Flag | Behavior |
+|------|----------|
+| `--mode <mode>` | Set default mode from flags. |
+| `--agents <4|16>` | Set research agent count. |
+| `--live` | Enable live trading in config. |
+| `--paper` | Force paper mode. |
+| `--stream` | Enable streaming in supported modes. |
+| `--model <model>` | Override model for this invocation. |
+| `--provider <name>` | Override provider and provider default model. |
+| `--thinking` | Enable Z.AI thinking for this invocation. |
+| `--no-thinking` | Disable Z.AI thinking for this invocation. |
+| `--reasoning-effort <value>` | Set Z.AI reasoning effort. |
+| `--thinking-mode <value>` | Set Z.AI thinking mode by value. |
+| `--format <text|json>` | Set `CLAWD_OUTPUT_FORMAT`. |
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/tasks` | `tasks/` | Manage background tasks |
-| `/agents` | `agents/` | Manage sub-agents |
-| `/ultraplan` | `ultraplan.tsx` | Generate a detailed execution plan |
-| `/plan` | `plan/` | Enter planning mode |
+## Retained Upstream Slash Commands
 
-## Diagnostics & Status
+The retained upstream command modules live under `src/commands/`. The old registry is `src/commands copy.ts`; the active top-level `src/commands.ts` no longer exports `getCommands()`.
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/doctor` | `doctor/` | Run environment diagnostics |
-| `/status` | `status/` | Show system and session status |
-| `/stats` | `stats/` | Show session statistics |
-| `/cost` | `cost/` | Display token usage and estimated cost |
-| `/version` | `version.ts` | Show Claude Code version |
-| `/usage` | `usage/` | Show detailed API usage |
-| `/extra-usage` | `extra-usage/` | Show extended usage details |
-| `/rate-limit-options` | `rate-limit-options/` | View rate limit configuration |
+Commands present on disk include:
 
-## Installation & Setup
+| Category | Commands |
+|----------|----------|
+| Git and review | `commit`, `commit-push-pr`, `branch`, `diff`, `review`, `ultrareview`, `pr-comments`, `rewind`, `security-review`, `bughunter` |
+| Session and context | `compact`, `context`, `resume`, `session`, `share`, `export`, `summary`, `clear`, `rename`, `tag`, `think-back`, `thinkback-play`, `passes` |
+| Settings and UX | `config`, `permissions`, `theme`, `output-style`, `color`, `keybindings`, `vim`, `effort`, `model`, `privacy-settings`, `fast`, `brief`, `statusline` |
+| Memory and files | `memory`, `add-dir`, `files`, `init`, `init-verifiers` |
+| MCP, plugins, skills | `mcp`, `plugin`, `reload-plugins`, `skills`, `hooks` |
+| Auth and account | `login`, `logout`, `oauth-refresh`, `usage`, `extra-usage`, `rate-limit-options`, `cost` |
+| Agents and tasks | `tasks`, `agents`, `plan`, `ultraplan` |
+| Diagnostics and setup | `doctor`, `status`, `stats`, `version`, `install`, `upgrade`, `terminal-setup`, `remote-env`, `web-setup`, `sandbox` |
+| Integrations | `remote-control`, `bridge-kick`, `ide`, `desktop`, `mobile`, `teleport`, `chrome`, `install-github-app`, `install-slack-app`, `x402` |
+| Internal/debug/stubs | `ant-trace`, `autofix-pr`, `backfill-sessions`, `break-cache`, `btw`, `ctx_viz`, `debug-tool-call`, `env`, `good-claude`, `heapdump`, `issue`, `mock-limits`, `onboarding`, `perf-issue`, `reset-limits`, `stickers` |
 
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/install` | `install.tsx` | Install or update Claude Code |
-| `/upgrade` | `upgrade/` | Upgrade to the latest version |
-| `/init` | `init.ts` | Initialize a project (create CLAUDE.md) |
-| `/init-verifiers` | `init-verifiers.ts` | Set up verifier hooks |
-| `/onboarding` | `onboarding/` | Run the first-time setup wizard |
-| `/terminalSetup` | `terminalSetup/` | Configure terminal integration |
-
-## IDE & Desktop Integration
-
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/bridge` | `bridge/` | Manage IDE bridge connections |
-| `/bridge-kick` | `bridge-kick.ts` | Force-restart the IDE bridge |
-| `/ide` | `ide/` | Open in IDE |
-| `/desktop` | `desktop/` | Hand off to the desktop app |
-| `/mobile` | `mobile/` | Hand off to the mobile app |
-| `/teleport` | `teleport/` | Transfer session to another device |
-
-## Remote & Environment
-
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/remote-env` | `remote-env/` | Configure remote environment |
-| `/remote-setup` | `remote-setup/` | Set up remote session |
-| `/env` | `env/` | View environment variables |
-| `/sandbox-toggle` | `sandbox-toggle/` | Toggle sandbox mode |
-
-## Misc
-
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/help` | `help/` | Show help and available commands |
-| `/exit` | `exit/` | Exit Claude Code |
-| `/copy` | `copy/` | Copy content to clipboard |
-| `/feedback` | `feedback/` | Send feedback to Anthropic |
-| `/release-notes` | `release-notes/` | View release notes |
-| `/rename` | `rename/` | Rename the current session |
-| `/tag` | `tag/` | Tag the current session |
-| `/insights` | `insights.ts` | Show codebase insights |
-| `/stickers` | `stickers/` | Easter egg — stickers |
-| `/good-claude` | `good-claude/` | Easter egg — praise Claude |
-| `/voice` | `voice/` | Toggle voice input mode |
-| `/chrome` | `chrome/` | Chrome extension integration |
-| `/issue` | `issue/` | File a GitHub issue |
-| `/statusline` | `statusline.tsx` | Customize the status line |
-| `/thinkback` | `thinkback/` | Replay Claude's thinking process |
-| `/thinkback-play` | `thinkback-play/` | Animated thinking replay |
-| `/passes` | `passes/` | Multi-pass execution |
-| `/x402` | `x402/` | x402 payment protocol integration |
-
-## Internal / Debug Commands
-
-| Command | Source | Description |
-|---------|--------|-------------|
-| `/ant-trace` | `ant-trace/` | Anthropic-internal tracing |
-| `/autofix-pr` | `autofix-pr/` | Auto-fix PR issues |
-| `/backfill-sessions` | `backfill-sessions/` | Backfill session data |
-| `/break-cache` | `break-cache/` | Invalidate caches |
-| `/btw` | `btw/` | "By the way" interjection |
-| `/ctx_viz` | `ctx_viz/` | Context visualization (debug) |
-| `/debug-tool-call` | `debug-tool-call/` | Debug a specific tool call |
-| `/heapdump` | `heapdump/` | Dump heap for memory analysis |
-| `/hooks` | `hooks/` | Manage hook scripts |
-| `/mock-limits` | `mock-limits/` | Mock rate limits for testing |
-| `/perf-issue` | `perf-issue/` | Report performance issues |
-| `/reset-limits` | `reset-limits/` | Reset rate limit counters |
-
----
+Several retained modules are stubs with `isEnabled: () => false`; verify `isEnabled()` before assuming a command is runnable in the upstream UI.
 
 ## See Also
 
-- [Architecture](architecture.md) — How the command system fits into the pipeline
-- [Tools Reference](tools.md) — Agent tools (different from slash commands)
-- [Exploration Guide](exploration-guide.md) — Finding command source code
+- [Architecture](architecture.md)
+- [Tools Reference](tools.md)
+- [Exploration Guide](exploration-guide.md)

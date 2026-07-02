@@ -1,2 +1,0 @@
-export declare const POWERSHELL_TOOL_NAME: "PowerShell";
-//# sourceMappingURL=toolName.d.ts.map

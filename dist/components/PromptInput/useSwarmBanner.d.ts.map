@@ -1,1 +1,0 @@
-{"version":3,"file":"useSwarmBanner.d.ts","sourceRoot":"","sources":["../../../src/components/PromptInput/useSwarmBanner.ts"],"names":[],"mappings":"AA0BA,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,sBAAsB,CAAA;AAEjD,KAAK,eAAe,GAAG;IACrB,IAAI,EAAE,MAAM,CAAA;IACZ,OAAO,EAAE,MAAM,KAAK,CAAA;CACrB,GAAG,IAAI,CAAA;AAER;;;;;;;;;GASG;AACH,wBAAgB,cAAc,IAAI,eAAe,CAsGhD"}

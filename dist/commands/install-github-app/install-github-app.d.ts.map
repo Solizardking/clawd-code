@@ -1,1 +1,0 @@
-{"version":3,"file":"install-github-app.d.ts","sourceRoot":"","sources":["../../../src/commands/install-github-app/install-github-app.tsx"],"names":[],"mappings":"AACA,OAAO,KAAgC,MAAM,OAAO,CAAC;AAOrD,OAAO,KAAK,EAAE,qBAAqB,EAAE,MAAM,wBAAwB,CAAC;AA+jBpE,wBAAsB,IAAI,CAAC,MAAM,EAAE,qBAAqB,GAAG,OAAO,CAAC,KAAK,CAAC,SAAS,CAAC,CAElF"}

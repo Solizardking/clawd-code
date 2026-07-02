@@ -1,1 +1,0 @@
-{"version":3,"file":"InvalidConfigDialog.d.ts","sourceRoot":"","sources":["../../src/components/InvalidConfigDialog.tsx"],"names":[],"mappings":"AAKA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,oBAAoB,CAAC;AAM3D,UAAU,yBAAyB;IACjC,KAAK,EAAE,gBAAgB,CAAC;CACzB;AA2GD,wBAAsB,uBAAuB,CAAC,EAC5C,KAAK,EACN,EAAE,yBAAyB,GAAG,OAAO,CAAC,IAAI,CAAC,CAgC3C"}

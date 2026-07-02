@@ -1,239 +1,156 @@
-# Bridge Layer (VS Code / JetBrains IDE Integration)
+# Bridge Layer
 
-## Architecture Overview
+`src/bridge/` is the retained upstream bridge that connects an upstream Claude Code REPL session to IDE extensions, claude.ai remote-control sessions, and session-ingress style workers.
 
-The bridge (`src/bridge/`, ~31 files) connects Claude Code CLI sessions to
-remote IDE extensions (VS Code, JetBrains) and the claude.ai web UI. It is
-gated behind `feature('BRIDGE_MODE')` which defaults to `false`.
+In the active Clawd package, `package.json` runs `src/cli.ts`, which does not enter bridge mode. Bridge code is still present, but it belongs to the retained upstream runtime around `src/main.tsx`, `src/replLauncher.tsx`, `src/screens/REPL.tsx`, and `src/commands copy.ts`.
 
-### Protocols
+## Current Status
 
-The bridge uses **two transport generations**:
+| Item | Current state |
+|------|---------------|
+| Active headless Clawd CLI | No bridge dispatch in `src/cli.ts`. |
+| Retained upstream entry | `src/main.tsx` contains `feature('BRIDGE_MODE')` and remote-control paths. |
+| Bridge command module | `src/commands/bridge/index.ts` defines command name `remote-control`. |
+| Old command registry | `src/commands copy.ts` conditionally loads `commands/bridge`. |
+| Active top-level `src/commands.ts` | Solana command router; does not export upstream `getCommands()`. |
+| Stub | `src/bridge/stub.ts` provides no-op bridge fallbacks. |
 
-| Version | Read Path | Write Path | Negotiation |
-|---------|-----------|------------|-------------|
-| **v1 (env-based)** | WebSocket to Session-Ingress (`ws(s)://.../v1/session_ingress/ws/{sessionId}`) | HTTP POST to Session-Ingress | Environments API poll/ack/dispatch |
-| **v2 (env-less)** | SSE stream via `SSETransport` | `CCRClient` → `/worker/*` endpoints | Direct `POST /v1/code/sessions/{id}/bridge` → worker JWT |
+Do not assume `src/main.tsx` remote-control mode is currently wired to the active top-level `src/commands.ts`. It was written for the upstream command registry shape.
 
-Both wrapped behind `ReplBridgeTransport` interface (`replBridgeTransport.ts`).
+## Files
 
-The v1 path: register environment → poll for work → acknowledge → spawn session.
-The v2 path: create session → POST `/bridge` for JWT → SSE + CCRClient directly.
+| File | Purpose |
+|------|---------|
+| `bridgeMain.ts` | Main bridge loop, polling, session spawn, heartbeat, backoff, capacity wake, timeout, and teardown. |
+| `bridgeApi.ts` | Environment/session-ingress API client and bridge API errors. |
+| `bridgeConfig.ts` | Bridge configuration resolution. |
+| `bridgeEnabled.ts` | `BRIDGE_MODE`, CCR, and auto-connect feature checks. |
+| `bridgeMessaging.ts` | Message conversion and outbound message handling. |
+| `bridgePermissionCallbacks.ts` | Permission request/response callbacks for bridge sessions. |
+| `bridgePointer.ts` | Bridge pointer state. |
+| `bridgeStatusUtil.ts` | Status formatting utilities. |
+| `bridgeUI.ts` | Terminal bridge logger/status UI. |
+| `capacityWake.ts` | Wake mechanism when active session capacity frees up. |
+| `codeSessionApi.ts` | Code-session API helpers. |
+| `createSession.ts` | Bridge session creation. |
+| `debugUtils.ts`, `bridgeDebug.ts` | Bridge debug helpers. |
+| `envLessBridgeConfig.ts` | Env-less bridge configuration path. |
+| `flushGate.ts` | Flush coordination. |
+| `inboundAttachments.ts` | Attachment handling from inbound bridge messages. |
+| `inboundMessages.ts` | Inbound user/control message handling. |
+| `initReplBridge.ts` | Initializes bridge from the REPL side. |
+| `jwtUtils.ts` | JWT decoding and proactive refresh scheduling. |
+| `pollConfig.ts`, `pollConfigDefaults.ts` | Bridge polling/backoff configuration. |
+| `remoteBridgeCore.ts` | Remote bridge core and outbound-only mirror support. |
+| `replBridge.ts` | REPL bridge state and message API. |
+| `replBridgeHandle.ts` | Global handle access. |
+| `replBridgeTransport.ts` | Bridge transport abstraction. |
+| `sessionIdCompat.ts` | Compatibility conversion between session ID formats. |
+| `sessionRunner.ts` | Child session spawn/management. |
+| `trustedDevice.ts` | Trusted-device token support. |
+| `types.ts` | Shared bridge protocol/config/session types. |
+| `workSecret.ts` | Work-secret decoding, SDK URL construction, and worker registration. |
 
-### Authentication
+## Transport Model
 
-1. **OAuth tokens** — claude.ai subscription required (`isClaudeAISubscriber()`)
-2. **JWT** — Session-Ingress tokens (`sk-ant-si-` prefixed) with `exp` claims.
-   `jwtUtils.ts` decodes and schedules proactive refresh before expiry.
-3. **Trusted Device token** — `X-Trusted-Device-Token` header for elevated
-   security tier sessions. Enrolled via `trustedDevice.ts`.
-4. **Environment secret** — base64url-encoded `WorkSecret` containing
-   `session_ingress_token`, `api_base_url`, git sources, auth tokens.
+The bridge supports two transport generations:
 
-Dev override: `CLAUDE_BRIDGE_OAUTH_TOKEN` and `CLAUDE_BRIDGE_BASE_URL`
-(ant-only, `process.env.USER_TYPE === 'ant'`).
+| Generation | Read path | Write path | Setup |
+|------------|-----------|------------|-------|
+| v1 env-based | WebSocket/HybridTransport to session ingress | HTTP POST to session ingress | Register environment, poll work, acknowledge, spawn session. |
+| v2 env-less | SSE through `SSETransport` | `CCRClient` worker endpoints | Create code session, bridge for worker JWT, connect directly. |
 
-### Message Flow (IDE ↔ CLI)
+Both paths are hidden behind the `ReplBridgeTransport` interface.
 
-```
-IDE / claude.ai  ──WebSocket/SSE──→  Session-Ingress  ──→  CLI (replBridge)
-   ←── POST / CCRClient writes ────  Session-Ingress  ←──  CLI
-```
+## Authentication
 
-**Inbound** (server → CLI):
-- `user` messages (prompts from web UI) → `handleIngressMessage()` → enqueued to REPL
-- `control_request` (initialize, set_model, interrupt, set_permission_mode, set_max_thinking_tokens)
-- `control_response` (permission decisions from IDE)
+Authentication inputs used by the retained bridge:
 
-**Outbound** (CLI → server):
-- `assistant` messages (Claude's responses)
-- `user` messages (echoed for sync)
-- `result` messages (turn completion)
-- System events, tool starts, activities
+| Mechanism | Files | Notes |
+|-----------|-------|-------|
+| OAuth/subscription | `bridgeEnabled.ts`, auth utilities | Bridge checks GrowthBook gates and Claude AI subscriber state. |
+| Session-ingress JWT | `jwtUtils.ts`, `workSecret.ts` | Decoded for expiration and refreshed proactively. |
+| Trusted device token | `trustedDevice.ts` | Sent as elevated security tier header where needed. |
+| Work secret | `workSecret.ts` | Base64url-encoded payload with tokens, API URL, git sources, and MCP config. |
+| Dev overrides | bridge config paths | `CLAUDE_BRIDGE_OAUTH_TOKEN` and `CLAUDE_BRIDGE_BASE_URL` are ant-only override paths. |
 
-Dedup: `BoundedUUIDSet` tracks recent posted/inbound UUIDs to reject echoes
-and re-deliveries.
+## Message Flow
 
-### Lifecycle
-
-1. **Entitlement check**: `isBridgeEnabled()` / `isBridgeEnabledBlocking()` →
-   GrowthBook gate `tengu_ccr_bridge` + OAuth subscriber check
-2. **Session creation**: `createBridgeSession()` → POST to API
-3. **Transport init**: v1 `HybridTransport` or v2 `SSETransport` + `CCRClient`
-4. **Message pump**: Read inbound via transport, write outbound via batch
-5. **Token refresh**: Proactive JWT refresh via `createTokenRefreshScheduler()`
-6. **Teardown**: `teardown()` → flush pending → close transport → archive session
-
-Spawn modes for `claude remote-control`:
-- `single-session`: One session in cwd, bridge tears down when it ends
-- `worktree`: Persistent server, each session gets an isolated git worktree
-- `same-dir`: Persistent server, sessions share cwd
-
-### Key Types
-
-- `BridgeConfig` — Full bridge configuration (dir, auth, URLs, spawn mode, timeouts)
-- `WorkSecret` — Decoded work payload (token, API URL, git sources, MCP config)
-- `SessionHandle` — Running session (kill, activities, stdin, token update)
-- `ReplBridgeHandle` — REPL bridge API (write messages, control requests, teardown)
-- `BridgeState` — `'ready' | 'connected' | 'reconnecting' | 'failed'`
-- `SpawnMode` — `'single-session' | 'worktree' | 'same-dir'`
-
----
-
-## Feature Gate Analysis
-
-### Must Work (currently works correctly)
-
-The `feature('BRIDGE_MODE')` gate in `src/shims/bun-bundle.ts` defaults to
-`false` (reads `CLAUDE_CODE_BRIDGE_MODE` env var). All critical code paths
-are properly guarded:
-
-| Location | Guard |
-|----------|-------|
-| `src/entrypoints/cli.tsx:112` | `feature('BRIDGE_MODE') && args[0] === 'remote-control'` |
-| `src/main.tsx:2246` | `feature('BRIDGE_MODE') && remoteControlOption !== undefined` |
-| `src/main.tsx:3866` | `if (feature('BRIDGE_MODE'))` (Commander subcommand) |
-| `src/hooks/useReplBridge.tsx:79-88` | All `useAppState` calls gated by `feature('BRIDGE_MODE')` ternary |
-| `src/hooks/useReplBridge.tsx:99` | `useEffect` body gated by `feature('BRIDGE_MODE')` |
-| `src/components/PromptInput/PromptInputFooter.tsx:160` | `if (!feature('BRIDGE_MODE')) return null` |
-| `src/components/Settings/Config.tsx:930` | `feature('BRIDGE_MODE') && isBridgeEnabled()` spread |
-| `src/tools/BriefTool/upload.ts:99` | `if (feature('BRIDGE_MODE'))` |
-| `src/tools/ConfigTool/supportedSettings.ts:153` | `feature('BRIDGE_MODE')` spread |
-
-### Can Defer (full bridge functionality)
-
-All of the following are behind the feature gate and inactive:
-- `runBridgeLoop()` — Full bridge orchestration in `bridgeMain.ts`
-- `initReplBridge()` — REPL bridge initialization
-- `initBridgeCore()` / `initEnvLessBridgeCore()` — Transport negotiation
-- `createBridgeApiClient()` — Environments API calls
-- `BridgeUI` — Bridge status display and QR codes
-- Token refresh scheduling
-- Multi-session management (worktree mode)
-- Permission delegation to IDE
-
-### Won't Break
-
-Static imports of bridge modules from outside `src/bridge/` do NOT crash because:
-
-1. **All bridge files exist** — they're in the repo, so imports resolve.
-2. **No side effects at import time** — bridge modules define functions/types
-   but don't execute bridge logic on import.
-3. **Runtime guards** — Functions like `isBridgeEnabled()` return `false`
-   when `feature('BRIDGE_MODE')` is false. `getReplBridgeHandle()` returns
-   `null`. `useReplBridge` short-circuits via ternary operators.
-
-Files with unguarded static imports (safe because files exist):
-- `src/hooks/useReplBridge.tsx` — imports types and utils from bridge
-- `src/components/Settings/Config.tsx` — imports `isBridgeEnabled` (returns false)
-- `src/components/PromptInput/PromptInputFooter.tsx` — early-returns null
-- `src/tools/SendMessageTool/SendMessageTool.ts` — `getReplBridgeHandle()` returns null
-- `src/tools/BriefTool/upload.ts` — guarded at call site
-- `src/commands/logout/logout.tsx` — `clearTrustedDeviceTokenCache` is a no-op
-
----
-
-## Bridge Stub
-
-Created `src/bridge/stub.ts` with:
-- `isBridgeAvailable()` → always returns `false`
-- `noopBridgeHandle` — silent no-op `ReplBridgeHandle`
-- `noopBridgeLogger` — silent no-op `BridgeLogger`
-
-Available for any future code that needs a safe fallback when bridge is off.
-
----
-
-## Bridge Activation (Future Work)
-
-To enable the bridge:
-
-### 1. Environment Variable
-```bash
-export CLAUDE_CODE_BRIDGE_MODE=true
+```text
+IDE or claude.ai
+  -> session ingress or worker transport
+  -> bridge transport
+  -> repl bridge
+  -> REPL / QueryEngine / tools
+  -> outbound assistant, tool, result, and status messages
 ```
 
-### 2. Authentication Requirements
-- Must be logged in to claude.ai with an active subscription
-  (`isClaudeAISubscriber()` must return `true`)
-- OAuth tokens obtained via `claude auth login` (needs `user:profile` scope)
-- GrowthBook gate `tengu_ccr_bridge` must be enabled for the user's org
+Inbound messages include:
 
-### 3. IDE Extension
-- VS Code: Claude Code extension (connects via the bridge's Session-Ingress layer)
-- JetBrains: Similar integration (same protocol)
-- Web: `claude.ai/code?bridge={environmentId}` URL
+| Message | Behavior |
+|---------|----------|
+| User prompts | Enqueued into the REPL session. |
+| Control requests | Initialize, set model, interrupt, set permission mode, set thinking tokens, or ask for permission. |
+| Control responses | Permission decisions and other host responses. |
+| Attachments | Routed through inbound attachment helpers. |
 
-### 4. Network / Ports
-- **Session-Ingress**: WebSocket (`wss://`) or SSE for reads; HTTPS POST for writes
-- **API base**: Production `api.claude.ai` (configured via OAuth config)
-- Dev overrides: `CLAUDE_BRIDGE_BASE_URL`, localhost uses `ws://` and `/v2/` paths
-- QR code displayed in terminal links to `claude.ai/code?bridge={envId}`
+Outbound messages include assistant messages, echoed user messages, result messages, tool/activity events, and status updates.
 
-### 5. Running Remote Control
-```bash
-# Single session (tears down when session ends)
-claude remote-control
+Deduplication uses bounded recent UUID tracking so bridge echoes and redeliveries do not duplicate messages.
 
-# Named session
-claude remote-control "my-project"
+## Bridge Loop Lifecycle
 
-# With specific spawn mode (requires tengu_ccr_bridge_multi_session gate)
-claude remote-control --spawn worktree
-claude remote-control --spawn same-dir
-```
+`runBridgeLoop()` in `bridgeMain.ts` does the heavy lifting:
 
-### 6. Additional Flags
-- `--remote-control [name]` / `--rc [name]` — Start REPL with bridge pre-enabled
-- `--debug-file <path>` — Write debug log to file
-- `--session-id <id>` — Resume an existing session
+1. Validate bridge/environment IDs and decode work secrets.
+2. Poll for work with backoff and sleep detection.
+3. Spawn child sessions through `sessionRunner.ts`.
+4. Track active sessions, work IDs, compat IDs, ingress JWTs, timers, and worktrees.
+5. Heartbeat active work and requeue sessions when auth expires.
+6. Enforce capacity and session timeout behavior.
+7. Refresh tokens before expiry.
+8. Tear down sessions, worktrees, transports, and telemetry on abort.
 
----
+Spawn modes include single-session, worktree, and same-directory modes. Multi-session spawn requires the `tengu_ccr_bridge_multi_session` GrowthBook gate in the retained upstream path.
 
-## Chrome Extension Bridge
+## Direct Connect And Remote Sessions
 
-### `--claude-in-chrome-mcp` (cli.tsx:72)
+Bridge is not the only retained remote system:
 
-Launches a **Claude-in-Chrome MCP server** via `runClaudeInChromeMcpServer()` from
-`src/utils/claudeInChrome/mcpServer.ts`. This:
-- Creates a `StdioServerTransport` (MCP over stdin/stdout)
-- Uses `@ant/claude-for-chrome-mcp` package to create an MCP server
-- Bridges between Claude Code and the Chrome extension
-- Supports both native socket (local) and WebSocket bridge (`wss://bridge.claudeusercontent.com`)
-- Gated by `tengu_copper_bridge` GrowthBook flag (or `USER_TYPE=ant`)
+| Area | Path | Purpose |
+|------|------|---------|
+| Direct connect client | `src/server/createDirectConnectSession.ts` | POSTs to `${serverUrl}/sessions`, validates response, and returns a direct-connect config. |
+| Direct connect manager | `src/server/directConnectManager.ts` | WebSocket manager for SDK messages, permission requests, user messages, and interrupts. |
+| Remote session manager | `src/remote/RemoteSessionManager.ts` | CCR WebSocket plus HTTP POST flow for remote sessions and permission decisions. |
+| Remote WebSocket | `src/remote/SessionsWebSocket.ts` | WebSocket subscription and reconnect behavior. |
+| Remote permission bridge | `src/remote/remotePermissionBridge.ts` | Routes permission requests between remote host and local UI. |
 
-**Not gated by `feature('BRIDGE_MODE')`** — this is a separate subsystem. It only
-runs when explicitly invoked with `--claude-in-chrome-mcp` flag.
+## Feature Gates
 
-### `--chrome-native-host` (cli.tsx:79)
+Relevant gates seen in current source:
 
-Launches the **Chrome Native Messaging Host** via `runChromeNativeHost()` from
-`src/utils/claudeInChrome/chromeNativeHost.ts`. This:
-- Implements Chrome's native messaging protocol (4-byte length prefix + JSON over stdin/stdout)
-- Creates a Unix domain socket server at a secure path
-- Proxies MCP messages between Chrome extension and local Claude Code instances
-- Has its own debug logging to `~/.claude/debug/chrome-native-host.txt` (ant-only)
+| Gate | Area |
+|------|------|
+| `BRIDGE_MODE` | Main bridge availability and remote-control paths. |
+| `CCR_AUTO_CONNECT` | Auto-connect bridge behavior. |
+| `CCR_MIRROR` | Outbound-only mirror behavior. |
+| `DIRECT_CONNECT` | Direct-connect paths in `src/main.tsx`. |
+| `SSH_REMOTE` | SSH remote path in `src/main.tsx`. |
+| `KAIROS` | Assistant/chat-specific bridge resume options and session handling. |
+| `DAEMON` plus `BRIDGE_MODE` | Old remote-control server command path in `src/commands copy.ts`. |
 
-**Not gated by `feature('BRIDGE_MODE')`** — separate entry point. Only activated
-when Chrome calls the registered native messaging host binary.
+## Running Bridge Code
 
-### Safety
+In this checkout, the active `clawd-code` CLI does not expose bridge mode. To revive the retained upstream bridge path, first reconcile these points:
 
-Both Chrome paths:
-- Are **dynamic imports** — only loaded when the specific flag is passed
-- Return immediately after their own `await` — no side effects on normal CLI startup
-- Cannot crash normal operation because they're entirely separate code paths
-- Have no dependency on the bridge feature flag
+1. Restore or rewire the upstream command registry so `src/main.tsx` imports a module with `getCommands()` and `filterCommandsForRemoteMode()`.
+2. Ensure all upstream runtime dependencies are installed and declared.
+3. Build/run with the Bun feature flags expected by `src/main.tsx`.
+4. Enable `BRIDGE_MODE` and satisfy OAuth/subscriber/GrowthBook requirements.
+5. Verify `src/commands/bridge/index.ts` and `runBridgeLoop()` with a real or mocked session-ingress environment.
 
----
+## See Also
 
-## Verification Summary
-
-| Check | Status |
-|-------|--------|
-| `feature('BRIDGE_MODE')` returns `false` by default | ✅ Verified in `src/shims/bun-bundle.ts` |
-| Bridge code not executed when disabled | ✅ All call sites use `feature()` guard |
-| No bridge-related errors on startup | ✅ Imports resolve (files exist), no side effects |
-| CLI works in terminal-only mode | ✅ Bridge is purely additive |
-| Chrome paths don't crash | ✅ Separate dynamic imports, only on explicit flags |
-| Stub available for safety | ✅ Created `src/bridge/stub.ts` |
+- [Architecture](architecture.md)
+- [Subsystems Guide](subsystems.md)
+- [Commands Reference](commands.md)

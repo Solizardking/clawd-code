@@ -1,2 +1,0 @@
-export declare const ENTER_PLAN_MODE_TOOL_NAME = "EnterPlanMode";
-//# sourceMappingURL=constants.d.ts.map

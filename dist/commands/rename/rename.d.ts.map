@@ -1,1 +1,0 @@
-{"version":3,"file":"rename.d.ts","sourceRoot":"","sources":["../../../src/commands/rename/rename.ts"],"names":[],"mappings":"AAMA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,eAAe,CAAA;AACnD,OAAO,KAAK,EACV,sBAAsB,EACtB,qBAAqB,EACtB,MAAM,wBAAwB,CAAA;AAU/B,wBAAsB,IAAI,CACxB,MAAM,EAAE,qBAAqB,EAC7B,OAAO,EAAE,cAAc,GAAG,sBAAsB,EAChD,IAAI,EAAE,MAAM,GACX,OAAO,CAAC,IAAI,CAAC,CA8Df"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"config.d.ts","sourceRoot":"","sources":["../../../src/services/lsp/config.ts"],"names":[],"mappings":"AAMA,OAAO,KAAK,EAAE,qBAAqB,EAAE,MAAM,YAAY,CAAA;AAEvD;;;;;GAKG;AACH,wBAAsB,gBAAgB,IAAI,OAAO,CAAC;IAChD,OAAO,EAAE,MAAM,CAAC,MAAM,EAAE,qBAAqB,CAAC,CAAA;CAC/C,CAAC,CA8DD"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"useBuddyNotification.d.ts","sourceRoot":"","sources":["../../src/buddy/useBuddyNotification.tsx"],"names":[],"mappings":"AAWA,wBAAgB,mBAAmB,IAAI,OAAO,CAI7C;AACD,wBAAgB,WAAW,IAAI,OAAO,CAIrC;AAsBD,wBAAgB,oBAAoB,SAmCnC;AACD,wBAAgB,yBAAyB,CAAC,IAAI,EAAE,MAAM,GAAG,KAAK,CAAC;IAC7D,KAAK,EAAE,MAAM,CAAC;IACd,GAAG,EAAE,MAAM,CAAC;CACb,CAAC,CAeD"}

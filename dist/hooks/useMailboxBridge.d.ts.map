@@ -1,1 +1,0 @@
-{"version":3,"file":"useMailboxBridge.d.ts","sourceRoot":"","sources":["../../src/hooks/useMailboxBridge.ts"],"names":[],"mappings":"AAGA,KAAK,KAAK,GAAG;IACX,SAAS,EAAE,OAAO,CAAA;IAClB,eAAe,EAAE,CAAC,OAAO,EAAE,MAAM,KAAK,OAAO,CAAA;CAC9C,CAAA;AAED,wBAAgB,gBAAgB,CAAC,EAAE,SAAS,EAAE,eAAe,EAAE,EAAE,KAAK,GAAG,IAAI,CAY5E"}

@@ -11,6 +11,7 @@ import { getOpenRouterProviderModels, OPENROUTER_AUTO_MODEL, OPENROUTER_FABLE5, 
 import { getZaiEnvConfig, normalizeZaiReasoningEffort, normalizeZaiThinking, ZAI_AGENT_BASE_URL, ZAI_DEFAULT_MODEL, ZAI_IMAGE_MODEL, ZAI_SLIDE_AGENT_ID, ZAI_VISION_MODEL, } from './zai.js';
 import { createXaiClient } from './xai.js';
 import { EnvironmentVerifier } from './verify.js';
+import { runTelegramRelay } from './telegram.js';
 const DEFAULT_HELIUS_RPC = process.env.HELIUS_RPC_URL ||
     (process.env.HELIUS_API_KEY
         ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
@@ -342,6 +343,11 @@ async function main() {
         else {
             printModelsTable();
         }
+        process.exit(0);
+    }
+    // /telegram command — long-poll relay: chat/CLI only, no computer-use control
+    if (args[0] === '/telegram' || args[0] === 'telegram') {
+        await runTelegramRelay();
         process.exit(0);
     }
     // /verify command

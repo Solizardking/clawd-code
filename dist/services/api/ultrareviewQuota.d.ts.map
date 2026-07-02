@@ -1,1 +1,0 @@
-{"version":3,"file":"ultrareviewQuota.d.ts","sourceRoot":"","sources":["../../../src/services/api/ultrareviewQuota.ts"],"names":[],"mappings":"AAMA,MAAM,MAAM,wBAAwB,GAAG;IACrC,YAAY,EAAE,MAAM,CAAA;IACpB,aAAa,EAAE,MAAM,CAAA;IACrB,iBAAiB,EAAE,MAAM,CAAA;IACzB,UAAU,EAAE,OAAO,CAAA;CACpB,CAAA;AAED;;;;GAIG;AACH,wBAAsB,qBAAqB,IAAI,OAAO,CAAC,wBAAwB,GAAG,IAAI,CAAC,CAmBtF"}

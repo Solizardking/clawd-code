@@ -1,1 +1,0 @@
-{"version":3,"file":"extra-usage-core.d.ts","sourceRoot":"","sources":["../../../src/commands/extra-usage/extra-usage-core.ts"],"names":[],"mappings":"AAaA,KAAK,gBAAgB,GACjB;IAAE,IAAI,EAAE,SAAS,CAAC;IAAC,KAAK,EAAE,MAAM,CAAA;CAAE,GAClC;IAAE,IAAI,EAAE,gBAAgB,CAAC;IAAC,GAAG,EAAE,MAAM,CAAC;IAAC,MAAM,EAAE,OAAO,CAAA;CAAE,CAAA;AAE5D,wBAAsB,aAAa,IAAI,OAAO,CAAC,gBAAgB,CAAC,CAoG/D"}

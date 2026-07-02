@@ -15,6 +15,22 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+  "include": [
+    "src/cli.ts",
+    "src/commands.ts",
+    "src/env.ts",
+    "src/zai.ts",
+    "src/xai.ts",
+    "src/wallet.ts",
+    "src/arena.ts",
+    "src/deepseek.ts",
+    "src/openrouter.ts",
+    "src/grok-models.ts",
+    "src/verify.ts",
+    "src/voice-agent.ts",
+    "src/solana-harness.ts",
+    "src/x402.ts",
+    "src/telegram.ts"
+  ],
+  "exclude": ["node_modules", "dist", "src/*.test.ts"]
 }

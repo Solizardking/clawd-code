@@ -1,1 +1,0 @@
-{"version":3,"file":"install.d.ts","sourceRoot":"","sources":["../../src/commands/install.tsx"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,oBAAoB,EAAE,MAAM,iBAAiB,CAAC;AAkR5D,eAAO,MAAM,OAAO;;;;;iBAKC,CAAC,MAAM,EAAE,MAAM,EAAE,OAAO,CAAC,EAAE;QAC5C,OAAO,CAAC,EAAE,oBAAoB,CAAC;KAChC,KAAK,IAAI,YAAY,OAAO,QAAQ,MAAM,EAAE;CAa9C,CAAC"}

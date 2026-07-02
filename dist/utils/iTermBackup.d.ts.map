@@ -1,1 +1,0 @@
-{"version":3,"file":"iTermBackup.d.ts","sourceRoot":"","sources":["../../src/utils/iTermBackup.ts"],"names":[],"mappings":"AAMA,wBAAgB,uBAAuB,IAAI,IAAI,CAK9C;AAsBD,KAAK,aAAa,GACd;IACE,MAAM,EAAE,UAAU,GAAG,WAAW,CAAA;CACjC,GACD;IACE,MAAM,EAAE,QAAQ,CAAA;IAChB,UAAU,EAAE,MAAM,CAAA;CACnB,CAAA;AAEL,wBAAsB,2BAA2B,IAAI,OAAO,CAAC,aAAa,CAAC,CA8B1E"}

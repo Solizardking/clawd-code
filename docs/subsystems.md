@@ -1,346 +1,270 @@
 # Subsystems Guide
 
-> Detailed documentation of Claude Code's major subsystems.
+This guide maps the current `src/` tree. It separates the active Clawd headless CLI from retained upstream Claude Code subsystems.
 
----
+## Active Clawd CLI
 
-## Table of Contents
+**Location:** `src/cli.ts`, `src/commands.ts`, `src/modes/`
 
-- [Bridge (IDE Integration)](#bridge-ide-integration)
-- [MCP (Model Context Protocol)](#mcp-model-context-protocol)
-- [Permission System](#permission-system)
-- [Plugin System](#plugin-system)
-- [Skill System](#skill-system)
-- [Task System](#task-system)
-- [Memory System](#memory-system)
-- [Coordinator (Multi-Agent)](#coordinator-multi-agent)
-- [Voice System](#voice-system)
-- [Service Layer](#service-layer)
+The active package entrypoint is `src/cli.ts`. It loads config, normalizes provider/model choices, handles global commands, dispatches direct commands, and runs a mode class.
 
----
-
-## Bridge (IDE Integration)
-
-**Location:** `src/bridge/`
-
-The bridge is a bidirectional communication layer connecting Claude Code's CLI with IDE extensions (VS Code, JetBrains). It allows the CLI to run as a backend for IDE-based interfaces.
-
-### Architecture
-
-```
-┌──────────────────┐         ┌──────────────────────┐
-│   IDE Extension  │◄───────►│   Bridge Layer       │
-│  (VS Code, JB)   │  JWT    │  (src/bridge/)       │
-│                  │  Auth   │                      │
-│  - UI rendering  │         │  - Session mgmt      │
-│  - File watching │         │  - Message routing    │
-│  - Diff display  │         │  - Permission proxy   │
-└──────────────────┘         └──────────┬───────────┘
-                                        │
-                                        ▼
-                              ┌──────────────────────┐
-                              │   Claude Code Core   │
-                              │  (QueryEngine, Tools) │
-                              └──────────────────────┘
+```text
+src/cli.ts
+  -> src/env.ts
+  -> src/grok-models.ts
+  -> provider adapter or Solana helper
+  -> src/modes/*
 ```
 
-### Key Files
+Key active modes:
 
-| File | Purpose |
+| Mode | Purpose |
 |------|---------|
-| `bridgeMain.ts` | Main bridge loop — starts the bidirectional channel |
-| `bridgeMessaging.ts` | Message protocol (serialize/deserialize) |
-| `bridgePermissionCallbacks.ts` | Routes permission prompts to the IDE |
-| `bridgeApi.ts` | API surface exposed to the IDE |
-| `bridgeConfig.ts` | Bridge configuration |
-| `replBridge.ts` | Connects the REPL session to the bridge |
-| `jwtUtils.ts` | JWT-based authentication between CLI and IDE |
-| `sessionRunner.ts` | Manages bridge session execution |
-| `createSession.ts` | Creates new bridge sessions |
-| `trustedDevice.ts` | Device trust verification |
-| `workSecret.ts` | Workspace-scoped secrets |
-| `inboundMessages.ts` | Handles messages coming from the IDE |
-| `inboundAttachments.ts` | Handles file attachments from the IDE |
-| `types.ts` | TypeScript types for the bridge protocol |
+| `code` | Generate TypeScript/Solana code and write files to `outputs/`. |
+| `chain` | Read-first Solana JSON-RPC harness with explicit mutation gates. |
+| `chart` | Chart/report planner, image analysis, and slide/poster export. |
+| `trade` | Paper-first Phoenix/Vulcan perps workflows and chart vision. |
+| `research` | Multi-provider research, including xAI Responses multi-agent. |
+| `image` | Z.AI image generation with fallbacks. |
+| `voice` | TTS plus xAI voice-agent mode. |
+| `repl` | Readline chat session with dot commands. |
 
-### Feature Flag
+## Provider And Model System
 
-The bridge is gated behind the `BRIDGE_MODE` feature flag and is stripped from non-IDE builds.
+**Location:** `src/grok-models.ts`, `src/zai.ts`, `src/xai.ts`, `src/anthropic.ts`, `src/openrouter.ts`, `src/deepseek.ts`, `src/utils/model/`
 
----
+The active registry is `src/grok-models.ts`; retained upstream Claude model resolution is in `src/utils/model/`.
 
-## MCP (Model Context Protocol)
+| Provider | Active adapter | Notes |
+|----------|----------------|-------|
+| Z.AI | `src/zai.ts` | Default provider. Chat, streaming, vision, image, and slide-agent helpers. |
+| xAI | `src/xai.ts` | Chat completions, Responses API, streaming, model ping, voice/research support. |
+| Anthropic | `src/anthropic.ts` | Native Messages API client with blocking and SSE streaming. |
+| OpenRouter | `src/openrouter.ts` | OpenAI-compatible chat, streaming, auto-routing, Nemo/Fable aliases. |
+| DeepSeek | `src/deepseek.ts` | OpenAI-compatible blocking chat client. |
 
-**Location:** `src/services/mcp/`
+`src/utils/model/configs.ts` contains retained Claude configs for first-party, Bedrock, Vertex, and Foundry. It currently includes Claude 3.5/3.7, Haiku 4.5, Sonnet 4/4.5/4.6, and Opus 4/4.1/4.5/4.6. Active Clawd Anthropic models are separately listed in `src/grok-models.ts` and `src/anthropic.ts`.
 
-Claude Code acts as both an **MCP client** (consuming tools/resources from MCP servers) and can run as an **MCP server** (exposing its own tools via `src/entrypoints/mcp.ts`).
+## Environment And Verification
 
-### Client Features
+**Location:** `src/env.ts`, `src/verify.ts`
 
-- **Tool discovery** — Enumerates tools from connected MCP servers
-- **Resource browsing** — Lists and reads MCP-exposed resources
-- **Dynamic tool loading** — `ToolSearchTool` discovers tools at runtime
-- **Authentication** — `McpAuthTool` handles MCP server auth flows
-- **Connectivity monitoring** — `useMcpConnectivityStatus` hook tracks connection health
+`loadClawdEnv()` merges config in this order:
 
-### Server Mode
+1. `~/.clawd-code/.env`
+2. `./.env`
+3. `~/.grok/config.toml`
+4. `./.grok/config.toml`
+5. `process.env`
 
-When launched via `src/entrypoints/mcp.ts`, Claude Code exposes its own tools and resources via the MCP protocol, allowing other AI agents to use Claude Code as a tool server.
+`EnvironmentVerifier` checks Node >=18, Z.AI key, optional xAI key and reachability, Helius/Solana RPC, Phoenix URL, Vulcan CLI, live-trading safety gates, config file, and workspace.
 
-### Related Tools
+## Solana Harness
 
-| Tool | Purpose |
-|------|---------|
-| `MCPTool` | Invoke tools on connected MCP servers |
-| `ListMcpResourcesTool` | List available MCP resources |
-| `ReadMcpResourceTool` | Read a specific MCP resource |
-| `McpAuthTool` | Authenticate with an MCP server |
-| `ToolSearchTool` | Discover deferred tools from MCP servers |
+**Location:** `src/solana-harness.ts`, `src/modes/chain.ts`
 
-### Configuration
+The harness is a typed JSON-RPC wrapper with read-first defaults.
 
-MCP servers are configured via `/mcp` command or settings files. The server approval flow lives in `src/services/mcpServerApproval.tsx`.
-
----
-
-## Permission System
-
-**Location:** `src/hooks/toolPermission/`
-
-Every tool invocation passes through a centralized permission check before execution.
-
-### Permission Modes
-
-| Mode | Behavior |
+| Area | Behavior |
 |------|----------|
-| `default` | Prompts the user for each potentially destructive operation |
-| `plan` | Shows the full execution plan, asks once for batch approval |
-| `bypassPermissions` | Auto-approves all operations (dangerous — for trusted environments) |
-| `auto` | ML-based classifier automatically decides (experimental) |
+| RPC resolution | `SOLANA_RPC_URL`, `HELIUS_RPC_URL`, `HELIUS_API_KEY`, or `https://api.mainnet-beta.solana.com`. |
+| Cluster inference | Explicit `SOLANA_CLUSTER` or inferred from URL. |
+| Commitment | `SOLANA_COMMITMENT`, default `confirmed`. |
+| Mutation gate | Mutation RPC requires `SOLANA_HARNESS_READONLY=false`, `LIVE_TRADING=true`, and `OPERATOR_CONFIRMED=true`. |
+| Methods | Health, version, slot, epoch, blockhash, balance, account, tx, signatures, program accounts, token supply/accounts, fees, airdrop, simulate, send raw. |
 
-### How It Works
+## Wallets
 
-1. Tool is invoked by the Query Engine
-2. `checkPermissions(input, context)` is called on the tool
-3. Permission handler checks against configured rules
-4. If not auto-approved, user is prompted via terminal or IDE
+**Location:** `src/wallet.ts`
 
-### Permission Rules
+Wallets are local Ed25519 keypairs stored as JSON arrays under `~/.clawd-code/wallets` or `CLAWD_WALLET_DIR`. Directories are set to `0700`; wallet files are set to `0600`.
 
-Rules use wildcard patterns to match tool invocations:
+The wallet helper implements:
 
-```
-Bash(git *)           # Allow all git commands without prompt
-Bash(npm test)        # Allow 'npm test' specifically
-FileEdit(/src/*)      # Allow edits to anything under src/
-FileRead(*)           # Allow reading any file
-```
+| Function | Behavior |
+|----------|----------|
+| `createWallet(name)` | Generate Ed25519 keypair, encode public key as base58, save secret key. |
+| `listWallets()` | Read wallet files, reconstruct public keys, and return name/path/pubkey records. |
 
-### Key Files
+## Arena And Agent Identity
 
-| File | Path |
-|------|------|
-| Permission context | `src/hooks/toolPermission/PermissionContext.ts` |
-| Permission handlers | `src/hooks/toolPermission/handlers/` |
-| Permission logging | `src/hooks/toolPermission/permissionLogging.ts` |
-| Permission types | `src/types/permissions.ts` |
+**Location:** `src/arena.ts`, `src/commands.ts`
 
----
+The Arena client talks to `https://cheshireterminal.ai/api/metaplex-agents`.
 
-## Plugin System
+| Operation | Endpoint behavior |
+|-----------|-------------------|
+| `mint` | Mint a Solana mainnet Metaplex agent identity. |
+| `register` | Register capabilities, services, pricing, A2A/MCP/x402 endpoints. |
+| `fetch` | Fetch agent profile by asset address. |
+| `review` | Submit reputation review with proof of payment. |
+| `health` | Check developer status endpoint. |
 
-**Location:** `src/plugins/`, `src/services/plugins/`
+Stored identity is written to `~/.clawd-code/arena-identity.json`.
 
-Claude Code supports installable plugins that can extend its capabilities.
+## x402
 
-### Structure
+**Location:** `src/x402.ts`, `src/services/x402/`, `src/commands/x402/`
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Plugin loader | `src/services/plugins/` | Discovers and loads plugins |
-| Built-in plugins | `src/plugins/builtinPlugins.ts` | Plugins that ship with Claude Code |
-| Bundled plugins | `src/plugins/bundled/` | Plugin code bundled into the binary |
-| Plugin types | `src/types/plugin.ts` | TypeScript types for plugin API |
+The active helper `src/x402.ts` builds x402-gated HTTP requests using:
 
-### Plugin Lifecycle
+| Header | Meaning |
+|--------|---------|
+| `X-402-Amount` | Requested payment amount. |
+| `X-402-Gateway` | Gateway URL, default `https://x402.wtf`. |
+| `X-402-Destination` | Optional destination wallet. |
+| `Authorization` | Optional bearer value from `X402_PAYMENT_SECRET`. |
 
-1. **Discovery** — Scans plugin directories and marketplace
-2. **Installation** — Downloaded and registered (`/plugin` command)
-3. **Loading** — Initialized at startup or on-demand
-4. **Execution** — Plugins can contribute tools, commands, and prompts
-5. **Auto-update** — `usePluginAutoupdateNotification` handles updates
+Retained upstream service code under `src/services/x402/` includes payment fetch, config, client, types, and tracker modules.
 
-### Related Commands
+## Telegram Relay
 
-| Command | Purpose |
-|---------|---------|
-| `/plugin` | Install, remove, or manage plugins |
-| `/reload-plugins` | Reload all installed plugins |
+**Location:** `src/telegram.ts`, `src/cli.ts`
 
----
+The active `/telegram` command starts a Telegram Bot API long-poll relay. It is chat/CLI only and does not expose OS-level or computer-use control.
 
-## Skill System
+Required env:
 
-**Location:** `src/skills/`
+| Variable | Purpose |
+|----------|---------|
+| `TELEGRAM_BOT_TOKEN` | Bot API token. |
+| `TELEGRAM_ALLOWED_CHAT_ID` | Single allowlisted chat ID; all other chats are rejected. |
+| `ZAI_API_KEY` | Required for Z.AI chat responses. |
 
-Skills are reusable, named workflows that bundle prompts and tool configurations for specific tasks.
+The relay keeps up to 20 turns of per-chat history, supports `/reset` and `/clear`, and chunks outbound messages to Telegram's message-size limit.
 
-### Structure
+## Retained Query And Tool Loop
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Bundled skills | `src/skills/bundled/` | Skills that ship with Claude Code |
-| Skill loader | `src/skills/loadSkillsDir.ts` | Loads skills from disk |
-| MCP skill builders | `src/skills/mcpSkillBuilders.ts` | Creates skills from MCP resources |
-| Skill registry | `src/skills/bundledSkills.ts` | Registration of all bundled skills |
+**Location:** `src/QueryEngine.ts`, `src/Tool.ts`, `src/tools.ts`, `src/tools/`, `src/services/tools/`
 
-### Bundled Skills (16)
+The retained upstream agent loop contains:
 
-| Skill | Purpose |
-|-------|---------|
-| `batch` | Batch operations across multiple files |
-| `claudeApi` | Direct Anthropic API interaction |
-| `claudeInChrome` | Chrome extension integration |
-| `debug` | Debugging workflows |
-| `keybindings` | Keybinding configuration |
-| `loop` | Iterative refinement loops |
-| `loremIpsum` | Generate placeholder text |
-| `remember` | Persist information to memory |
-| `scheduleRemoteAgents` | Schedule agents for remote execution |
-| `simplify` | Simplify complex code |
-| `skillify` | Create new skills from workflows |
-| `stuck` | Get unstuck when blocked |
-| `updateConfig` | Modify configuration programmatically |
-| `verify` / `verifyContent` | Verify code correctness |
+| Layer | Role |
+|-------|------|
+| `QueryEngine.ts` | Main streaming LLM and tool-loop engine. |
+| `Tool.ts` | Tool types, context, permission context, result/progress types, and `buildTool`. |
+| `tools.ts` | Built-in tool registry and MCP merge helpers. |
+| `services/tools/toolExecution.ts` | Validation, permission, hook, telemetry, execution, and result mapping. |
+| `services/tools/toolOrchestration.ts` | Serial/concurrent tool batching. |
+| `services/tools/StreamingToolExecutor.ts` | Streaming executor support. |
 
-### Execution
+This layer is not called by the active `src/cli.ts` path.
 
-Skills are invoked via the `SkillTool` or the `/skills` command. Users can also create custom skills.
+## MCP
 
----
+**Location:** `src/services/mcp/`, `src/tools/MCPTool/`, `src/tools/ListMcpResourcesTool/`, `src/tools/ReadMcpResourceTool/`, `src/tools/ToolSearchTool/`
 
-## Task System
+Retained MCP support includes:
 
-**Location:** `src/tasks/`
+| Feature | Paths |
+|---------|-------|
+| Config parsing | `config.ts`, `envExpansion.ts`, `normalization.ts`, `mcpStringUtils.ts` |
+| Clients and connections | `client.ts`, `MCPConnectionManager.tsx`, `useManageMCPConnections.ts`, transports |
+| Auth | `auth.ts`, `oauthPort.ts`, `xaa.ts`, `xaaIdpLogin.ts`, `McpAuthTool` |
+| Permissions/channels | `channelAllowlist.ts`, `channelPermissions.ts`, `channelNotification.ts` |
+| Resources/tools | `ListMcpResourcesTool`, `ReadMcpResourceTool`, `MCPTool`, `ToolSearchTool` |
+| Server mode | `src/entrypoints/mcp.ts` |
 
-Manages background and parallel work items — shell tasks, agent tasks, and teammate agents.
+MCP tools are dynamically merged into the tool pool with built-ins.
 
-### Task Types
+## Permissions
 
-| Type | Location | Purpose |
-|------|----------|---------|
-| `LocalShellTask` | `LocalShellTask/` | Background shell command execution |
-| `LocalAgentTask` | `LocalAgentTask/` | Sub-agent running locally |
-| `RemoteAgentTask` | `RemoteAgentTask/` | Agent running on a remote machine |
-| `InProcessTeammateTask` | `InProcessTeammateTask/` | Parallel teammate agent |
-| `DreamTask` | `DreamTask/` | Background "dreaming" process |
-| `LocalMainSessionTask` | `LocalMainSessionTask.ts` | Main session as a task |
+**Location:** `src/hooks/toolPermission/`, `src/components/permissions/`, `src/types/permissions.ts`
 
-### Task Tools
+Retained permission flow supports interactive prompts, coordinator workers, swarm workers, shell/file permission dialogs, rule management, sandbox requests, notebook/file edit diffs, ask-user-question prompts, and web fetch prompts.
 
-| Tool | Purpose |
+Tool execution checks:
+
+1. Tool input schema.
+2. Tool-specific permission function.
+3. Permission rules.
+4. Hooks and classifier paths when enabled.
+5. UI or remote permission prompt when required.
+
+## Plugins, Skills, And Output Styles
+
+**Locations:** `src/plugins/`, `src/services/plugins/`, `src/skills/`, `src/outputStyles/`
+
+| Subsystem | Summary |
+|-----------|---------|
+| Plugins | Built-in/bundled plugins, marketplace/install commands, plugin cache, command loading, and plugin telemetry. |
+| Skills | Bundled skill implementations, disk skill loading, MCP skill builders, and skill command integration. |
+| Output styles | Loads output styles from configured directories and supports retained `/output-style`. |
+
+Bundled skills include workflows such as batch, Claude API helpers, Chrome integration, debug, keybindings, loop, remember, schedule remote agents, simplify, skillify, stuck, config updates, and verification.
+
+## Tasks And Agents
+
+**Location:** `src/tasks/`, `src/tools/AgentTool/`, `src/tools/Task*Tool/`, `src/coordinator/`
+
+Task types present:
+
+| Task | Purpose |
 |------|---------|
-| `TaskCreateTool` | Create a new background task |
-| `TaskUpdateTool` | Update task status |
-| `TaskGetTool` | Retrieve task details |
-| `TaskListTool` | List all tasks |
-| `TaskOutputTool` | Get task output |
-| `TaskStopTool` | Stop a running task |
+| `LocalShellTask` | Background shell execution. |
+| `LocalAgentTask` | Local sub-agent task. |
+| `RemoteAgentTask` | Remote agent task. |
+| `InProcessTeammateTask` | Parallel in-process teammate. |
+| `DreamTask` | Background auto-dream/consolidation task. |
+| `LocalMainSessionTask` | Represents main session as a task. |
 
----
+Coordinator mode is feature-gated and uses team create/delete plus send-message tools.
 
-## Memory System
+## Memory And Compaction
 
-**Location:** `src/memdir/`
+**Locations:** `src/memdir/`, `src/services/compact/`, `src/services/extractMemories/`, `src/services/teamMemorySync/`, `src/services/SessionMemory/`
 
-Claude Code's persistent memory system, based on `CLAUDE.md` files.
+Memory support includes project/user/team memory paths, memory scanning, relevance, prompts, age helpers, automatic extraction, team memory secret scanning, watcher support, session memory utilities, and context compaction.
 
-### Memory Hierarchy
+## UI, Ink, State, And Hooks
 
-| Scope | Location | Purpose |
-|-------|----------|---------|
-| Project memory | `CLAUDE.md` in project root | Project-specific facts, conventions |
-| User memory | `~/.claude/CLAUDE.md` | User preferences, cross-project |
-| Extracted memories | `src/services/extractMemories/` | Auto-extracted from conversations |
-| Team memory sync | `src/services/teamMemorySync/` | Shared team knowledge |
+**Locations:** `src/ink/`, `src/components/`, `src/screens/`, `src/context/`, `src/hooks/`, `src/state/`
 
-### Related
+The retained upstream UI is a custom Ink/React terminal app:
 
-- `/memory` command for managing memories
-- `remember` skill for persisting information
-- `useMemoryUsage` hook for tracking memory size
+| Area | Paths |
+|------|-------|
+| Renderer/primitives | `src/ink/`, `src/ink/components/`, `src/ink/layout/`, `src/ink/events/`, `src/ink/termio/` |
+| App components | `src/components/` |
+| Screens | `src/screens/REPL.tsx`, `Doctor.tsx`, `ResumeConversation.tsx` |
+| React contexts | `src/context/` |
+| Hooks | `src/hooks/` |
+| State store | `src/state/` |
 
----
+## Bridge, Remote, And Direct Connect
 
-## Coordinator (Multi-Agent)
+**Locations:** `src/bridge/`, `src/remote/`, `src/server/`, `src/cli/transports/`
 
-**Location:** `src/coordinator/`
+| Area | Summary |
+|------|---------|
+| Bridge | Retained IDE/claude.ai bridge, gated by `BRIDGE_MODE`. |
+| Remote session | CCR WebSocket plus HTTP event posting through `RemoteSessionManager`. |
+| Direct connect | Creates sessions on a direct-connect server and connects over WebSocket. |
+| Web server | Terminal/admin/auth/session web server under `src/server/web/`. |
+| CLI transports | SSE, WebSocket, hybrid transport, serial uploader, worker state uploader. |
 
-Orchestrates multiple agents working in parallel on different aspects of a task.
+See [Bridge Layer](bridge.md) for the detailed bridge map.
 
-### How It Works
+## Voice
 
-- `coordinatorMode.ts` manages the coordinator lifecycle
-- `TeamCreateTool` and `TeamDeleteTool` manage agent teams
-- `SendMessageTool` enables inter-agent communication
-- `AgentTool` spawns sub-agents
+**Locations:** `src/modes/voice.ts`, `src/voice-agent.ts`, `src/services/voice.ts`, `src/services/voiceStreamSTT.ts`, `src/hooks/useVoice*`, `src/voice/`
 
-Gated behind the `COORDINATOR_MODE` feature flag.
+Active voice mode supports local TTS and xAI voice-agent text mode. Retained upstream voice code is gated by `VOICE_MODE` and includes STT, key terms, hooks, and UI integration.
 
----
+## Build And Shims
 
-## Voice System
+**Locations:** `src/shims/`, `src/native-ts/`, `src/migrations/`
 
-**Location:** `src/voice/`
-
-Voice input/output support for hands-free interaction.
-
-### Components
-
-| File | Location | Purpose |
-|------|----------|---------|
-| Voice service | `src/services/voice.ts` | Core voice processing |
-| STT streaming | `src/services/voiceStreamSTT.ts` | Speech-to-text streaming |
-| Key terms | `src/services/voiceKeyterms.ts` | Domain-specific vocabulary |
-| Voice hooks | `src/hooks/useVoice.ts`, `useVoiceEnabled.ts`, `useVoiceIntegration.tsx` | React hooks |
-| Voice command | `src/commands/voice/` | `/voice` slash command |
-
-Gated behind the `VOICE_MODE` feature flag.
-
----
-
-## Service Layer
-
-**Location:** `src/services/`
-
-External integrations and shared services.
-
-| Service | Path | Purpose |
-|---------|------|---------|
-| **API** | `api/` | Anthropic SDK client, file uploads, bootstrap |
-| **MCP** | `mcp/` | MCP client connections and tool discovery |
-| **OAuth** | `oauth/` | OAuth 2.0 authentication flow |
-| **LSP** | `lsp/` | Language Server Protocol manager |
-| **Analytics** | `analytics/` | GrowthBook feature flags, telemetry |
-| **Plugins** | `plugins/` | Plugin loader and marketplace |
-| **Compact** | `compact/` | Conversation context compression |
-| **Policy Limits** | `policyLimits/` | Organization rate limits/quota |
-| **Remote Settings** | `remoteManagedSettings/` | Enterprise managed settings sync |
-| **Token Estimation** | `tokenEstimation.ts` | Token count estimation |
-| **Team Memory** | `teamMemorySync/` | Team knowledge synchronization |
-| **Tips** | `tips/` | Contextual usage tips |
-| **Agent Summary** | `AgentSummary/` | Agent work summaries |
-| **Prompt Suggestion** | `PromptSuggestion/` | Suggested follow-up prompts |
-| **Session Memory** | `SessionMemory/` | Session-level memory |
-| **Magic Docs** | `MagicDocs/` | Documentation generation |
-| **Auto Dream** | `autoDream/` | Background ideation |
-| **x402** | `x402/` | x402 payment protocol |
-
----
+| Area | Summary |
+|------|---------|
+| Shims | Bun bundle/macro/preload compatibility. |
+| Native TS | Color diff, file index, and yoga layout replacements. |
+| Migrations | Settings/model/bridge migrations including Sonnet 4.5 to 4.6 and Opus migrations. |
 
 ## See Also
 
-- [Architecture](architecture.md) — How subsystems connect in the core pipeline
-- [Tools Reference](tools.md) — Tools related to each subsystem
-- [Commands Reference](commands.md) — Commands for managing subsystems
-- [Exploration Guide](exploration-guide.md) — Finding subsystem source code
+- [Architecture](architecture.md)
+- [Commands Reference](commands.md)
+- [Tools Reference](tools.md)
+- [Bridge Layer](bridge.md)
+- [Exploration Guide](exploration-guide.md)

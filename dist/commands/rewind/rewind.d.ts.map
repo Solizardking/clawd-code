@@ -1,1 +1,0 @@
-{"version":3,"file":"rewind.d.ts","sourceRoot":"","sources":["../../../src/commands/rewind/rewind.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,mBAAmB,CAAA;AAC3D,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,eAAe,CAAA;AAEnD,wBAAsB,IAAI,CACxB,KAAK,EAAE,MAAM,EACb,OAAO,EAAE,cAAc,GACtB,OAAO,CAAC,kBAAkB,CAAC,CAM7B"}

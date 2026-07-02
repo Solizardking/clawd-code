@@ -1,1 +1,0 @@
-{"version":3,"file":"shouldUseSandbox.d.ts","sourceRoot":"","sources":["../../../src/tools/BashTool/shouldUseSandbox.ts"],"names":[],"mappings":"AAYA,KAAK,YAAY,GAAG;IAClB,OAAO,CAAC,EAAE,MAAM,CAAA;IAChB,yBAAyB,CAAC,EAAE,OAAO,CAAA;CACpC,CAAA;AAkHD,wBAAgB,gBAAgB,CAAC,KAAK,EAAE,OAAO,CAAC,YAAY,CAAC,GAAG,OAAO,CAuBtE"}
