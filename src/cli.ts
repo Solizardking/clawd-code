@@ -22,8 +22,10 @@ import {
   printModelsTable,
 } from './grok-models.js';
 import {
-  getOpenRouterNemoModels,
+  getOpenRouterProviderModels,
   OPENROUTER_AUTO_MODEL,
+  OPENROUTER_FABLE5,
+  OPENROUTER_FABLE_LATESY,
   OPENROUTER_NEMO_MODEL1,
   OPENROUTER_NEMO_MODEL2,
   OPENROUTER_NEMO_MODEL3,
@@ -272,6 +274,8 @@ ENVIRONMENT:
   OPENROUTER_NEMO_MODEL1 Balanced/free route. Default: ${OPENROUTER_NEMO_MODEL1}
   OPENROUTER_NEMO_MODEL2 Most-intelligent route. Default: ${OPENROUTER_NEMO_MODEL2}
   OPENROUTER_NEMO_MODEL3 Fast/free route. Default: ${OPENROUTER_NEMO_MODEL3}
+  OPENROUTER_FABLE5     Claude Fable 5 route. Default: ${OPENROUTER_FABLE5}
+  OPENROUTER_FABLE_LATESY Claude Fable latest route. Default: ${OPENROUTER_FABLE_LATESY}
   OPENROUTER_FREE_MODEL  Legacy alias for the balanced/free OpenRouter default
   CLAWD_PROVIDER         zai (default) | xai | anthropic | openrouter | deepseek
   CLAWD_MODEL            Default: ${ZAI_DEFAULT_MODEL}  (use auto with OpenRouter for prompt routing)
@@ -296,7 +300,7 @@ async function cmdInspect(): Promise<void> {
   const env = loadClawdEnv();
   const provider = normalizeProvider(env.CLAWD_PROVIDER || DEFAULT_PROVIDER);
   const model = env.CLAWD_MODEL || DEFAULT_MODEL;
-  const nemoModels = getOpenRouterNemoModels(env);
+  const openRouterModels = getOpenRouterProviderModels(env);
   const zai = getZaiEnvConfig(env);
   const fit = (value: string, width: number): string =>
     value.length > width ? `${value.slice(0, width - 3)}...` : value.padEnd(width);
@@ -335,9 +339,11 @@ async function cmdInspect(): Promise<void> {
   console.log(`║    anthropic   ${maskSecret(env.ANTHROPIC_API_KEY).padEnd(58)}║`);
   console.log(`║    deepseek    ${maskSecret(env.DEEPSEEK_API_KEY).padEnd(58)}║`);
   console.log(`║    openrouter  ${maskSecret(env.OPENROUTER_API_KEY).padEnd(58)}║`);
-  console.log(`║    OR route 1  ${fit(nemoModels.model1, 58)}║`);
-  console.log(`║    OR route 2  ${fit(nemoModels.model2, 58)}║`);
-  console.log(`║    OR route 3  ${fit(nemoModels.model3, 58)}║`);
+  console.log(`║    OR route 1  ${fit(openRouterModels.model1, 58)}║`);
+  console.log(`║    OR route 2  ${fit(openRouterModels.model2, 58)}║`);
+  console.log(`║    OR route 3  ${fit(openRouterModels.model3, 58)}║`);
+  console.log(`║    OR fable5   ${fit(openRouterModels.fable5, 58)}║`);
+  console.log(`║    OR latest   ${fit(openRouterModels.latest, 58)}║`);
   console.log(`║    ZAI model   ${fit(zai.model, 58)}║`);
   console.log(`║    ZAI chart   ${fit(zai.chartModel, 58)}║`);
   console.log(`║    ZAI vision  ${fit(zai.visionModel, 58)}║`);
@@ -452,7 +458,7 @@ async function main(): Promise<void> {
         } else if (normalized === 'deepseek') {
           console.log('Set DEEPSEEK_API_KEY=<key> and CLAWD_MODEL=deepseek-v4-pro or deepseek-v4-flash.');
         } else if (normalized === 'openrouter') {
-          console.log(`Set OPENROUTER_API_KEY=<key> and CLAWD_MODEL=${OPENROUTER_AUTO_MODEL} for prompt-based Nemo routing.`);
+          console.log(`Set OPENROUTER_API_KEY=<key> and CLAWD_MODEL=${OPENROUTER_AUTO_MODEL} for Nemo routing, or CLAWD_MODEL=fable5/fable-latest.`);
         }
       } else {
         console.log(`\n[CLAWD CODE] Unknown provider: ${args[1]}`);
@@ -476,11 +482,13 @@ async function main(): Promise<void> {
       console.log(`  xai        key=${maskSecret(env.XAI_API_KEY)}`);
       console.log(`  anthropic  key=${maskSecret(env.ANTHROPIC_API_KEY)}`);
       console.log(`  deepseek   key=${maskSecret(env.DEEPSEEK_API_KEY)}`);
-      const nemoModels = getOpenRouterNemoModels(env);
+      const openRouterModels = getOpenRouterProviderModels(env);
       console.log(`  openrouter key=${maskSecret(env.OPENROUTER_API_KEY)}  auto=${OPENROUTER_AUTO_MODEL}`);
-      console.log(`    balanced: ${nemoModels.model1}`);
-      console.log(`    smart   : ${nemoModels.model2}`);
-      console.log(`    fast    : ${nemoModels.model3}`);
+      console.log(`    balanced: ${openRouterModels.model1}`);
+      console.log(`    smart   : ${openRouterModels.model2}`);
+      console.log(`    fast    : ${openRouterModels.model3}`);
+      console.log(`    fable5  : ${openRouterModels.fable5}`);
+      console.log(`    latest  : ${openRouterModels.latest}`);
       console.log('\n  Switch: clawd-code /provider anthropic');
     }
     process.exit(0);

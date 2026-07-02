@@ -81,8 +81,10 @@ clawd-code voice "Clawd Code is operational"
 
 | Provider | Key | Default Model |
 |----------|-----|---------------|
-| xai | `XAI_API_KEY` | grok-4.20-multi-agent |
-| openrouter | `OPENROUTER_API_KEY` | nex-agi/nex-n2-pro:free |
+| zai | `ZAI_API_KEY` | glm-5.2 |
+| xai | `XAI_API_KEY` | grok-4.3 |
+| anthropic | `ANTHROPIC_API_KEY` | claude-sonnet-4-6 |
+| openrouter | `OPENROUTER_API_KEY` | auto Nemo routing, fable5, fable-latest |
 | deepseek | `DEEPSEEK_API_KEY` | deepseek-v4-pro |
 
-Switch: `clawd-code /provider <xai|openrouter|deepseek>`
+Switch: `clawd-code /provider <zai|xai|anthropic|openrouter|deepseek>`

@@ -52,6 +52,8 @@ Set in `~/.clawd-code/.env` or project `.env`:
 | `OPENROUTER_NEMO_MODEL1` | Balanced/free Nemo route (`nvidia/nemotron-3-ultra-550b-a55b:free`) |
 | `OPENROUTER_NEMO_MODEL2` | Most-intelligent Nemo route (`nvidia/nemotron-3-ultra-550b-a55b`) |
 | `OPENROUTER_NEMO_MODEL3` | Fast/free Nemo route (`nvidia/nemotron-3-super-120b-a12b:free`) |
+| `OPENROUTER_FABLE5` | Claude Fable 5 route (`anthropic/claude-fable-5`) |
+| `OPENROUTER_FABLE_LATESY` | Claude Fable latest route (`~anthropic/claude-fable-latest`) |
 | `HELIUS_API_KEY` | Helius API key for DAS/RPC |
 | `SOLANA_RPC_URL` | Solana RPC endpoint |
 | `SOLANA_CLUSTER` | Harness cluster label (`mainnet-beta`, `devnet`, `testnet`, `localnet`) |

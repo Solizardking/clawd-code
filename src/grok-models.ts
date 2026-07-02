@@ -7,6 +7,8 @@
  */
 
 import {
+  OPENROUTER_FABLE5,
+  OPENROUTER_FABLE_LATESY,
   OPENROUTER_NEMO_MODEL1,
   OPENROUTER_NEMO_MODEL2,
   OPENROUTER_NEMO_MODEL3,
@@ -214,7 +216,7 @@ export const MODELS: ModelDefinition[] = [
     bestFor: 'general',
     aliases: ['deepseek/flash', 'v4-flash', 'deepseek-chat', 'deepseek-reasoner'],
   },
-  // ── OpenRouter / NVIDIA Nemotron ─────────────────────────────────────
+  // ── OpenRouter / NVIDIA Nemotron + Claude Fable ─────────────────────
   {
     id: OPENROUTER_NEMO_MODEL1,
     name: 'NVIDIA Nemotron 3 Ultra 550B Free',
@@ -256,6 +258,34 @@ export const MODELS: ModelDefinition[] = [
     provider: 'openrouter',
     bestFor: 'general',
     aliases: ['nemo-super-free', 'nemo-fast', 'or-fast'],
+  },
+  {
+    id: OPENROUTER_FABLE5,
+    name: 'Claude Fable 5 (OpenRouter)',
+    description: 'OpenRouter Anthropic Claude Fable 5 route for provider-backed code and reasoning tasks',
+    contextWindow: 0,
+    inputPrice: 0,
+    outputPrice: 0,
+    reasoning: true,
+    supportsClientTools: false,
+    streaming: true,
+    provider: 'openrouter',
+    bestFor: 'code',
+    aliases: ['fable5', 'fable-5', 'claude-fable-5', 'openrouter-fable5', 'or-fable5'],
+  },
+  {
+    id: OPENROUTER_FABLE_LATESY,
+    name: 'Claude Fable Latest (OpenRouter)',
+    description: 'OpenRouter Anthropic Claude Fable latest alias for tracking the current Fable route',
+    contextWindow: 0,
+    inputPrice: 0,
+    outputPrice: 0,
+    reasoning: true,
+    supportsClientTools: false,
+    streaming: true,
+    provider: 'openrouter',
+    bestFor: 'research',
+    aliases: ['fable', 'fable-latest', 'claude-fable-latest', 'openrouter-fable-latest', 'or-fable-latest'],
   },
   // ── xAI Grok ──────────────────────────────────────────────────────────
   {

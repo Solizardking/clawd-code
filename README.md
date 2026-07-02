@@ -102,6 +102,8 @@ Runtime configuration lives in `~/.clawd-code/.env`. Start from
 | `OPENROUTER_NEMO_MODEL1` | Balanced/free OpenRouter Nemo route | `nvidia/nemotron-3-ultra-550b-a55b:free` |
 | `OPENROUTER_NEMO_MODEL2` | Most-intelligent OpenRouter Nemo route | `nvidia/nemotron-3-ultra-550b-a55b` |
 | `OPENROUTER_NEMO_MODEL3` | Fast/free OpenRouter Nemo route | `nvidia/nemotron-3-super-120b-a12b:free` |
+| `OPENROUTER_FABLE5` | OpenRouter Claude Fable 5 route | `anthropic/claude-fable-5` |
+| `OPENROUTER_FABLE_LATESY` | OpenRouter Claude Fable latest route | `~anthropic/claude-fable-latest` |
 | `CLAWD_STREAM` | Enable streaming output by default | `false` |
 | `SOLANA_RPC_URL` | Solana RPC endpoint | mainnet-beta |
 | `SOLANA_CLUSTER` | Solana cluster label for the harness | inferred |
@@ -238,7 +240,7 @@ Clawd Code supports five AI providers with unified streaming:
 | `zai` | *(default)* | `glm-5.2`, `glm-5-turbo`, `glm-5v-turbo`, `glm-image`, `cogview-4` | native SSE / image API |
 | `xai` | `grok` | `grok-4.3`, `grok-4.3-fast`, `grok-4.20-multi-agent`, `grok-voice-think-fast-1.0`, `grok-imagine-image-quality`, … | native SSE |
 | `anthropic` | `claude`, `ant` | `claude-sonnet-4-6`, `claude-opus-4-8`, `claude-haiku-4-5-20251001` | native SSE |
-| `openrouter` | `or` | Nemo auto routing (`OPENROUTER_NEMO_MODEL1/2/3`) + any OR model | native SSE |
+| `openrouter` | `or` | Nemo auto routing (`OPENROUTER_NEMO_MODEL1/2/3`), Fable routes (`OPENROUTER_FABLE5`, `OPENROUTER_FABLE_LATESY`) + any OR model | native SSE |
 | `deepseek` | `ds` | `deepseek-v4-pro`, `deepseek-v4-flash` | blocking |
 
 ```bash
@@ -265,7 +267,8 @@ OpenRouter auto routing is deterministic and local. Short/simple prompts route
 to `OPENROUTER_NEMO_MODEL3`, complex coding/research prompts route to
 `OPENROUTER_NEMO_MODEL2`, and balanced prompts route to
 `OPENROUTER_NEMO_MODEL1`. Passing an explicit OpenRouter model ID bypasses the
-router.
+router. Fable aliases are available as `fable5` and `fable-latest`, backed by
+`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`.
 
 ## Interactive REPL
 

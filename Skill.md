@@ -225,6 +225,8 @@ Notable flags: `PROACTIVE`, `KAIROS`, `BRIDGE_MODE`, `VOICE_MODE`, `COORDINATOR_
 | `OPENROUTER_NEMO_MODEL1` | Balanced/free OpenRouter Nemo route |
 | `OPENROUTER_NEMO_MODEL2` | Most-intelligent OpenRouter Nemo route |
 | `OPENROUTER_NEMO_MODEL3` | Fast/free OpenRouter Nemo route |
+| `OPENROUTER_FABLE5` | OpenRouter Claude Fable 5 route |
+| `OPENROUTER_FABLE_LATESY` | OpenRouter Claude Fable latest route |
 | `HELIUS_API_KEY` | Helius RPC/webhook access         |
 | `SOLANA_RPC_URL` | Custom Solana RPC endpoint        |
 | `SOLANA_CLUSTER` | Solana harness cluster label      |

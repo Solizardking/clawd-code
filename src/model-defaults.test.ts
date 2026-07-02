@@ -26,4 +26,9 @@ describe('model defaults', () => {
     assert.equal(defaultModelFor('vision'), 'glm-5v-turbo');
     assert.equal(defaultModelFor('image'), 'glm-image');
   });
+
+  test('OpenRouter Fable aliases resolve to provider model IDs', () => {
+    assert.equal(normalizeModelId('fable5'), 'anthropic/claude-fable-5');
+    assert.equal(normalizeModelId('fable-latest'), '~anthropic/claude-fable-latest');
+  });
 });
