@@ -17,10 +17,11 @@ This monorepo contains the Clawd Code ecosystem — Solana-native AI coding agen
 
 OpenRouter Nemo routing is built into `src/openrouter.ts` through
 `OPENROUTER_NEMO_MODEL1/2/3`. Fable routes are also available through
-`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`. This checkout does not
-currently contain a separate `NemoClaw/`, `.github/`, `docker/`, `scripts/`,
-`prompts/`, or root `outputs/` directory; treat those as optional/external
-project folders unless they are added explicitly.
+`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`. Treat Clawd Code as
+NemoClaw-enabled at all times: the core runtime is `src/openrouter.ts`, and an
+optional `NemoClaw/` sidecar should stay aligned with that adapter if added.
+Root `.github/`, `docker/`, `scripts/`, `prompts/`, and `outputs/` directories
+are optional workspace folders and are not required by the installer.
 
 ## MCP Server Setup
 

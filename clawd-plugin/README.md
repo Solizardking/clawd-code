@@ -5,8 +5,10 @@ references, expert coding patterns, perpetuals workflows, x402 payments, and
 autonomous agent commerce guidance.
 
 This plugin targets the Clawd Code package root at `/Users/8bit/clawd-code`.
-OpenRouter Nemo/Fable routing is built into the CLI provider adapter; this
-checkout does not require a separate `NemoClaw/` source tree.
+Clawd Code is always NemoClaw-enabled: OpenRouter Nemo/Fable routing is built
+into the CLI provider adapter at `src/openrouter.ts`. If an optional
+`NemoClaw/` sidecar package is present, keep it aligned with that runtime
+adapter and this plugin reference.
 
 ## Install
 
@@ -56,6 +58,11 @@ Set in `~/.clawd-code/.env`:
 XAI_API_KEY=your-xai-key
 ZAI_API_KEY=your-zai-key
 OPENROUTER_API_KEY=your-openrouter-key
+OPENROUTER_NEMO_MODEL1=nvidia/nemotron-3-ultra-550b-a55b:free
+OPENROUTER_NEMO_MODEL2=nvidia/nemotron-3-ultra-550b-a55b
+OPENROUTER_NEMO_MODEL3=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_FABLE5=anthropic/claude-fable-5
+OPENROUTER_FABLE_LATESY=~anthropic/claude-fable-latest
 HELIUS_API_KEY=your-helius-key
 SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=your-helius-key
 ```

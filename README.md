@@ -49,20 +49,54 @@ npm link
 
 ## Repository Layout
 
-This checkout is the Clawd Code package root. It always includes the OpenRouter
-Nemo/Fable routing in `src/openrouter.ts`; there is no separate `NemoClaw/`
-source tree in the current checkout.
+Canonical local root: `/Users/8bit/clawd-code`.
 
-| Path | Status | Purpose |
+Clawd Code is always NemoClaw-enabled. The active OpenRouter implementation is
+`src/openrouter.ts`, with deterministic Nemo auto routing plus explicit Fable
+aliases. If an optional `NemoClaw/` sidecar package is added to this checkout,
+keep `NemoClaw/src/`, `NemoClaw/README.md`, and this README in sync with the
+runtime adapter.
+
+| Path | Status in this checkout | Purpose |
 | --- | --- | --- |
-| `src/` | present | CLI runtime, provider adapters, modes, tests |
+| `.github/` | optional / not present | GitHub Actions workflows and issue/PR templates |
 | `clawd-plugin/` | present | Plugin manifest, MCP config, bundled skills/reference docs |
-| `web/` | present | Web client package |
+| `docker/` | optional / not present | Container packaging and deployment helpers |
 | `docs/` | present | Installer and repository layout notes |
+| `NemoClaw/` | optional / not present | Sidecar package for NemoClaw routing experiments when present |
+| `NemoClaw/src/` | optional / not present | Sidecar source tree; core runtime currently lives in `src/openrouter.ts` |
+| `outputs/` | ignored runtime output | Generated code, media, and reports; never commit secrets or artifacts |
+| `prompts/` | optional / not present | Build and implementation prompt packs |
 | `quantitative-signal-discovery-agent/` | present | Research/analysis project |
+| `scripts/` | optional / not present | Release, smoke-test, and maintenance scripts |
 | `son_of_anton_program/` | present | Solana program project |
-| `NemoClaw/` | not present | Historical/optional package; Nemo routing is built into `src/openrouter.ts` here |
-| `.github/`, `docker/`, `scripts/`, `prompts/`, `outputs/` | not present at package root | Optional project folders; installer does not require them |
+| `src/` | present | CLI runtime, provider adapters, modes, tests |
+| `web/` | present | Web client package |
+| `.gitattributes` | present | Git attributes |
+| `agent.md` | present | Agent-facing summary |
+| `CLAUDE.md` | present | Claude/agent local instructions |
+| `clawd.json` | present | Agent metadata and system profile |
+| `CLAWD.md` | present | Operator-facing Clawd notes |
+| `gitpretty-apply.sh` | optional / not present | Optional patch formatting helper |
+| `IDENTITY.md` | present | Identity and operating profile |
+| `install.sh` | present | Installer and config bootstrap |
+| `LICENSE` | present | MIT license |
+| `package-lock.json` | present | npm lockfile |
+| `package.json` | present | npm package manifest |
+| `README.md` | present | Primary project documentation |
+| `Skill.md` | present | Skill/package map |
+| `SOUL.md` | present | Agent persona notes |
+| `tsconfig.json` | present | TypeScript project configuration |
+
+Current OpenRouter routes:
+
+```bash
+OPENROUTER_NEMO_MODEL1=nvidia/nemotron-3-ultra-550b-a55b:free
+OPENROUTER_NEMO_MODEL2=nvidia/nemotron-3-ultra-550b-a55b
+OPENROUTER_NEMO_MODEL3=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_FABLE5=anthropic/claude-fable-5
+OPENROUTER_FABLE_LATESY=~anthropic/claude-fable-latest
+```
 
 ## Quick Start
 
@@ -418,16 +452,21 @@ Project layout:
 
 ```text
 clawd-code/
-├── install.sh
-├── package.json
-├── README.md
-├── LICENSE
-├── clawd.json
-├── src/
-│   ├── cli.ts
-│   ├── commands.ts
-│   ├── wallet.ts
+├── clawd-plugin/                  # plugin manifest, MCP config, skills
+├── docs/                          # install/layout notes
+├── src/                           # CLI runtime and provider adapters
+│   ├── openrouter.ts              # Nemo/Fable OpenRouter routing
+│   ├── grok-models.ts             # model/provider registry
 │   └── modes/
+├── web/                           # web client package
+├── quantitative-signal-discovery-agent/
+├── son_of_anton_program/
+├── install.sh                     # installer and .env bootstrap
+├── clawd.json                     # agent metadata
+├── Skill.md
+├── CLAWD.md
+├── package.json
+├── package-lock.json
 └── tsconfig.json
 ```
 

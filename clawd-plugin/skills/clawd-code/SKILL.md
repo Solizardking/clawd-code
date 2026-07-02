@@ -79,4 +79,4 @@ Required in `~/.clawd-code/.env`:
 - `references/` — Deep reference docs for Clawd Code CLI usage, wallet operations, perps workflows, and integration patterns
 - Package root: `/Users/8bit/clawd-code`
 - Plugin root: `/Users/8bit/clawd-code/clawd-plugin`
-- Nemo routing is built into `src/openrouter.ts`; a separate `NemoClaw/` directory is not present in this checkout.
+- NemoClaw routing is always enabled through `src/openrouter.ts`; keep any optional `NemoClaw/` sidecar aligned with that adapter.

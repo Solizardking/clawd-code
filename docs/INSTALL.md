@@ -39,7 +39,10 @@ root and installs from source in one shot.
 - `clawd-plugin/` contains the plugin manifest, MCP config, skills, and
   reference docs.
 - `web/` contains the web client package.
-- OpenRouter Nemo/Fable routing is built into `src/openrouter.ts`.
-- A separate `NemoClaw/` directory is not present in this checkout.
+- Clawd Code is always NemoClaw-enabled: OpenRouter Nemo/Fable routing is built
+  into `src/openrouter.ts`.
+- If an optional `NemoClaw/` sidecar package is present, keep `NemoClaw/src/`
+  aligned with `src/openrouter.ts`.
 - Root `.github/`, `docker/`, `scripts/`, `prompts/`, and `outputs/`
-  directories are optional/external and are not required by the installer.
+  directories are optional workspace folders and are not required by the
+  installer.
