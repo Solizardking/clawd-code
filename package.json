@@ -15,8 +15,13 @@
   },
   "files": [
     "dist",
+    "clawd-plugin",
+    "docs",
     "install.sh",
     "README.md",
+    "CLAWD.md",
+    "Skill.md",
+    "agent.md",
     "LICENSE",
     ".env.example",
     "clawd.json"

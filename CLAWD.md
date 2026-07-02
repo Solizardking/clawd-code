@@ -11,7 +11,16 @@ This monorepo contains the Clawd Code ecosystem — Solana-native AI coding agen
 | --- | --- |
 | `clawd-plugin/` | Clawd Code plugin — bundles skills + auto-starts MCP servers |
 | `src/` | Clawd Code CLI source — code/trade/research/image/voice modes |
+| `web/` | Web client package |
+| `docs/` | Installer and repository layout notes |
 | `dist/` | Built CLI output |
+
+OpenRouter Nemo routing is built into `src/openrouter.ts` through
+`OPENROUTER_NEMO_MODEL1/2/3`. Fable routes are also available through
+`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`. This checkout does not
+currently contain a separate `NemoClaw/`, `.github/`, `docker/`, `scripts/`,
+`prompts/`, or root `outputs/` directory; treat those as optional/external
+project folders unless they are added explicitly.
 
 ## MCP Server Setup
 

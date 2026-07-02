@@ -1,6 +1,12 @@
-# Clawd Code Plugin for Clawd Code
+# Clawd Code Plugin
 
-Build on Solana with Clawd Code — one install gives you live blockchain tools, expert coding patterns, perpetuals trading, x402 payments, and autonomous agent commerce.
+Build on Solana with Clawd Code. One plugin install gives you live blockchain
+references, expert coding patterns, perpetuals workflows, x402 payments, and
+autonomous agent commerce guidance.
+
+This plugin targets the Clawd Code package root at `/Users/8bit/clawd-code`.
+OpenRouter Nemo/Fable routing is built into the CLI provider adapter; this
+checkout does not require a separate `NemoClaw/` source tree.
 
 ## Install
 
@@ -31,7 +37,7 @@ clawd --plugin-dir ./clawd-code/clawd-plugin
 
 | Skill | Invoke | What It Does |
 |---|---|---|
-| **Clawd Code** | `/clawd:code` | Makes your agent an expert at using the Clawd Code CLI — 5 modes (code, trade, research, image, voice), wallet ops, perps workflows |
+| **Clawd Code** | `/clawd:code` | Makes your agent an expert at using the Clawd Code CLI — code, chain, chart, trade, research, image, voice, REPL, wallet ops, perps workflows |
 | **Build** | `/clawd:build` | Makes your agent an expert Solana developer — Helius APIs, routing logic, SDK patterns |
 | **DFlow** | `/clawd:dflow` | Makes your agent an expert at building Solana trading apps — DFlow swaps, prediction markets, KYC |
 | **Phantom** | `/clawd:phantom` | Makes your agent an expert at building frontend dApps — Phantom Connect SDK, token gating, NFT minting |
@@ -48,6 +54,8 @@ Set in `~/.clawd-code/.env`:
 
 ```bash
 XAI_API_KEY=your-xai-key
+ZAI_API_KEY=your-zai-key
+OPENROUTER_API_KEY=your-openrouter-key
 HELIUS_API_KEY=your-helius-key
 SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=your-helius-key
 ```

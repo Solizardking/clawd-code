@@ -30,7 +30,8 @@ clawd-code trade "long ETH $50"
 - LIVE — requires `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`
 
 ### RESEARCH MODE
-Multi-agent deep research with grok-4.20-multi-agent.
+Multi-agent deep research with the configured provider. The default provider is
+Z.AI GLM-5.2; OpenRouter can route through Nemo or explicit Fable aliases.
 
 ```bash
 clawd-code research --agents 4 "Solana perps funding arb"
@@ -38,11 +39,11 @@ clawd-code research --agents 16 "AI agent frameworks 2025"
 ```
 
 ### IMAGE MODE
-Image generation via DALL-E or Gemini.
+Image generation via Z.AI GLM-Image by default.
 
 ```bash
-clawd-code image "cyberpunk Solana trading desk" --model dall-e-3
-clawd-code image "neon clawd logo" --model gemini
+clawd-code image "cyberpunk Solana trading desk"
+clawd-code image "neon clawd logo" --model glm-image
 ```
 
 ### VOICE MODE
@@ -58,16 +59,16 @@ clawd-code voice "Clawd Code is operational"
 |---------|-------------|
 | `clawd-code wallet create [name]` | Create local Solana keypair |
 | `clawd-code wallet list` | List local wallet public keys |
+| `clawd-code chain status` | Show Solana RPC harness status |
+| `clawd-code chain balance [wallet]` | Wallet balance snapshot |
+| `clawd-code chain account ADDRESS` | Inspect an account |
 | `clawd-code perps` | Perpetuals dashboard |
 | `clawd-code funding` | Funding rate dashboard |
-| `clawd-code price SYMBOL` | Token price via Birdeye |
-| `clawd-code balance [wallet]` | Wallet balance snapshot |
-| `clawd-code send TOKEN AMOUNT ADDRESS` | Send SOL or SPL tokens |
-| `clawd-code positions` | Open perps positions |
-| `clawd-code signals` | Composite trading signals |
-| `clawd-code strategies` | Vulcan strategy runners |
-| `clawd-code agents` | Clawd agent registry |
-| `clawd-code models` | List available Grok models |
+| `clawd-code trade "<intent>"` | Trade/funding/position workflow |
+| `clawd-code research "<prompt>"` | Research mode |
+| `clawd-code image "<prompt>"` | Image mode |
+| `clawd-code repl` | Interactive model/provider session |
+| `clawd-code models` | List available models |
 | `clawd-code provider` | Show/switch AI provider |
 | `clawd-code goal <text>` | Natural language intent router |
 | `clawd-code verify` | Preflight environment checks |

@@ -27,6 +27,15 @@ creates `~/.clawd-code/.env` if one does not already exist.
 
 > **Note:** The xAI Voice Agent (`clawd-code voice --agent`) requires Node.js 22+ for native WebSocket support.
 
+Smoke-test a local checkout without linking a global binary:
+
+```bash
+CLAWD_CODE_SOURCE_DIR=/Users/8bit/clawd-code \
+CLAWD_CODE_CONFIG_DIR=/tmp/clawd-code-smoke-home/.clawd-code \
+CLAWD_CODE_SMOKE_TEST=true \
+sh /Users/8bit/clawd-code/install.sh
+```
+
 Manual install:
 
 ```bash
@@ -37,6 +46,23 @@ npm install
 npm run build
 npm link
 ```
+
+## Repository Layout
+
+This checkout is the Clawd Code package root. It always includes the OpenRouter
+Nemo/Fable routing in `src/openrouter.ts`; there is no separate `NemoClaw/`
+source tree in the current checkout.
+
+| Path | Status | Purpose |
+| --- | --- | --- |
+| `src/` | present | CLI runtime, provider adapters, modes, tests |
+| `clawd-plugin/` | present | Plugin manifest, MCP config, bundled skills/reference docs |
+| `web/` | present | Web client package |
+| `docs/` | present | Installer and repository layout notes |
+| `quantitative-signal-discovery-agent/` | present | Research/analysis project |
+| `son_of_anton_program/` | present | Solana program project |
+| `NemoClaw/` | not present | Historical/optional package; Nemo routing is built into `src/openrouter.ts` here |
+| `.github/`, `docker/`, `scripts/`, `prompts/`, `outputs/` | not present at package root | Optional project folders; installer does not require them |
 
 ## Quick Start
 
