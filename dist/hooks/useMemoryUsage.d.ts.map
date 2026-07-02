@@ -1,0 +1,1 @@
+{"version":3,"file":"useMemoryUsage.d.ts","sourceRoot":"","sources":["../../src/hooks/useMemoryUsage.ts"],"names":[],"mappings":"AAGA,MAAM,MAAM,iBAAiB,GAAG,QAAQ,GAAG,MAAM,GAAG,UAAU,CAAA;AAE9D,MAAM,MAAM,eAAe,GAAG;IAC5B,QAAQ,EAAE,MAAM,CAAA;IAChB,MAAM,EAAE,iBAAiB,CAAA;CAC1B,CAAA;AAKD;;;GAGG;AACH,wBAAgB,cAAc,IAAI,eAAe,GAAG,IAAI,CAqBvD"}

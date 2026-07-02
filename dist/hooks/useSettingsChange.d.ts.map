@@ -1,0 +1,1 @@
+{"version":3,"file":"useSettingsChange.d.ts","sourceRoot":"","sources":["../../src/hooks/useSettingsChange.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,gCAAgC,CAAA;AAEnE,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,4BAA4B,CAAA;AAE9D,wBAAgB,iBAAiB,CAC/B,QAAQ,EAAE,CAAC,MAAM,EAAE,aAAa,EAAE,QAAQ,EAAE,YAAY,KAAK,IAAI,GAChE,IAAI,CAgBN"}

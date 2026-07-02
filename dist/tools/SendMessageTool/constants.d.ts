@@ -1,0 +1,2 @@
+export declare const SEND_MESSAGE_TOOL_NAME = "SendMessage";
+//# sourceMappingURL=constants.d.ts.map

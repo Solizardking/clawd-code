@@ -1,0 +1,1 @@
+{"version":3,"file":"slashCommandParsing.d.ts","sourceRoot":"","sources":["../../src/utils/slashCommandParsing.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,MAAM,MAAM,kBAAkB,GAAG;IAC/B,WAAW,EAAE,MAAM,CAAA;IACnB,IAAI,EAAE,MAAM,CAAA;IACZ,KAAK,EAAE,OAAO,CAAA;CACf,CAAA;AAED;;;;;;;;;;;;;GAaG;AACH,wBAAgB,iBAAiB,CAAC,KAAK,EAAE,MAAM,GAAG,kBAAkB,GAAG,IAAI,CAmC1E"}

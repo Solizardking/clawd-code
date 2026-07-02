@@ -1,0 +1,1 @@
+{"version":3,"file":"metricsOptOut.d.ts","sourceRoot":"","sources":["../../../src/services/api/metricsOptOut.ts"],"names":[],"mappings":"AAeA,KAAK,aAAa,GAAG;IACnB,OAAO,EAAE,OAAO,CAAA;IAChB,QAAQ,EAAE,OAAO,CAAA;CAClB,CAAA;AAmGD;;;;;;;;;GASG;AACH,wBAAsB,mBAAmB,IAAI,OAAO,CAAC,aAAa,CAAC,CA0BlE;AAGD,eAAO,MAAM,mCAAmC,QAAO,IAEtD,CAAA"}

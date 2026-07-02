@@ -1,0 +1,33 @@
+import type { Key } from '../ink.js';
+import type { InlineGhostText, TextInputState } from '../types/textInputTypes.js';
+import type { ImageDimensions } from '../utils/imageResizer.js';
+export type UseTextInputProps = {
+    value: string;
+    onChange: (value: string) => void;
+    onSubmit?: (value: string) => void;
+    onExit?: () => void;
+    onExitMessage?: (show: boolean, key?: string) => void;
+    onHistoryUp?: () => void;
+    onHistoryDown?: () => void;
+    onHistoryReset?: () => void;
+    onClearInput?: () => void;
+    focus?: boolean;
+    mask?: string;
+    multiline?: boolean;
+    cursorChar: string;
+    highlightPastedText?: boolean;
+    invert: (text: string) => string;
+    themeText: (text: string) => string;
+    columns: number;
+    onImagePaste?: (base64Image: string, mediaType?: string, filename?: string, dimensions?: ImageDimensions, sourcePath?: string) => void;
+    disableCursorMovementForUpDownKeys?: boolean;
+    disableEscapeDoublePress?: boolean;
+    maxVisibleLines?: number;
+    externalOffset: number;
+    onOffsetChange: (offset: number) => void;
+    inputFilter?: (input: string, key: Key) => string;
+    inlineGhostText?: InlineGhostText;
+    dim?: (text: string) => string;
+};
+export declare function useTextInput({ value: originalValue, onChange, onSubmit, onExit, onExitMessage, onHistoryUp, onHistoryDown, onHistoryReset, onClearInput, mask, multiline, cursorChar, invert, columns, onImagePaste: _onImagePaste, disableCursorMovementForUpDownKeys, disableEscapeDoublePress, maxVisibleLines, externalOffset, onOffsetChange, inputFilter, inlineGhostText, dim, }: UseTextInputProps): TextInputState;
+//# sourceMappingURL=useTextInput.d.ts.map

@@ -1,0 +1,1 @@
+{"version":3,"file":"validateEditTool.d.ts","sourceRoot":"","sources":["../../../src/utils/settings/validateEditTool.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,aAAa,CAAA;AAInD;;;;;;;;GAQG;AACH,wBAAgB,gCAAgC,CAC9C,QAAQ,EAAE,MAAM,EAChB,eAAe,EAAE,MAAM,EACvB,iBAAiB,EAAE,MAAM,MAAM,GAC9B,OAAO,CAAC,gBAAgB,EAAE;IAAE,MAAM,EAAE,KAAK,CAAA;CAAE,CAAC,GAAG,IAAI,CA2BrD"}

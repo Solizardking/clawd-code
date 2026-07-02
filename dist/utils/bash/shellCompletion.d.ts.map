@@ -1,0 +1,1 @@
+{"version":3,"file":"shellCompletion.d.ts","sourceRoot":"","sources":["../../../src/utils/bash/shellCompletion.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,4DAA4D,CAAA;AAehG,MAAM,MAAM,mBAAmB,GAAG,SAAS,GAAG,UAAU,GAAG,MAAM,CAAA;AAyMjE;;;GAGG;AACH,wBAAsB,mBAAmB,CACvC,KAAK,EAAE,MAAM,EACb,YAAY,EAAE,MAAM,EACpB,WAAW,EAAE,WAAW,GACvB,OAAO,CAAC,cAAc,EAAE,CAAC,CAkC3B"}

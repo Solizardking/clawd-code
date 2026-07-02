@@ -1,0 +1,3 @@
+import type { PermissionMode } from './utils/permissions/PermissionMode.js';
+export declare function setup(cwd: string, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, worktreeEnabled: boolean, worktreeName: string | undefined, tmuxEnabled: boolean, customSessionId?: string | null, worktreePRNumber?: number, messagingSocketPath?: string): Promise<void>;
+//# sourceMappingURL=setup.d.ts.map

@@ -1,0 +1,1 @@
+{"version":3,"file":"bridgeUI.d.ts","sourceRoot":"","sources":["../../src/bridge/bridgeUI.ts"],"names":[],"mappings":"AAsBA,OAAO,KAAK,EAEV,YAAY,EAGb,MAAM,YAAY,CAAA;AAcnB,wBAAgB,kBAAkB,CAAC,OAAO,EAAE;IAC1C,OAAO,EAAE,OAAO,CAAA;IAChB,KAAK,CAAC,EAAE,CAAC,CAAC,EAAE,MAAM,KAAK,IAAI,CAAA;CAC5B,GAAG,YAAY,CAqef"}

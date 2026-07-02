@@ -1,0 +1,1 @@
+{"version":3,"file":"desktop.d.ts","sourceRoot":"","sources":["../../../src/commands/desktop/desktop.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAC1B,OAAO,KAAK,EAAE,oBAAoB,EAAE,MAAM,mBAAmB,CAAC;AAE9D,wBAAsB,IAAI,CAAC,MAAM,EAAE,CAAC,MAAM,CAAC,EAAE,MAAM,EAAE,OAAO,CAAC,EAAE;IAC7D,OAAO,CAAC,EAAE,oBAAoB,CAAC;CAChC,KAAK,IAAI,GAAG,OAAO,CAAC,KAAK,CAAC,SAAS,CAAC,CAEpC"}

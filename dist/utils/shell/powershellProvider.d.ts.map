@@ -1,0 +1,1 @@
+{"version":3,"file":"powershellProvider.d.ts","sourceRoot":"","sources":["../../../src/utils/shell/powershellProvider.ts"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,oBAAoB,CAAA;AAEvD;;;GAGG;AACH,wBAAgB,mBAAmB,CAAC,GAAG,EAAE,MAAM,GAAG,MAAM,EAAE,CAEzD;AAcD,wBAAgB,wBAAwB,CAAC,SAAS,EAAE,MAAM,GAAG,aAAa,CAgGzE"}

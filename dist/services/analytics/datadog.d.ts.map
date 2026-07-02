@@ -1,0 +1,1 @@
+{"version":3,"file":"datadog.d.ts","sourceRoot":"","sources":["../../../src/services/analytics/datadog.ts"],"names":[],"mappings":"AAiIA,eAAO,MAAM,iBAAiB,KAc5B,CAAA;AAEF;;;;GAIG;AACH,wBAAsB,eAAe,IAAI,OAAO,CAAC,IAAI,CAAC,CAMrD;AAGD,wBAAsB,iBAAiB,CACrC,SAAS,EAAE,MAAM,EACjB,UAAU,EAAE;IAAE,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,GAAG,MAAM,GAAG,SAAS,CAAA;CAAE,GAC1D,OAAO,CAAC,IAAI,CAAC,CAoHf"}

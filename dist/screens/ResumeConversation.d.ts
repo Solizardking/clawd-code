@@ -1,0 +1,30 @@
+import React from 'react';
+import type { Command } from '../commands.js';
+import type { MCPServerConnection, ScopedMcpServerConfig } from '../services/mcp/types.js';
+import type { Tool } from '../Tool.js';
+import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
+import type { Message } from '../types/message.js';
+import type { ThinkingConfig } from '../utils/thinking.js';
+type Props = {
+    commands: Command[];
+    worktreePaths: string[];
+    initialTools: Tool[];
+    mcpClients?: MCPServerConnection[];
+    dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>;
+    debug: boolean;
+    mainThreadAgentDefinition?: AgentDefinition;
+    autoConnectIdeFlag?: boolean;
+    strictMcpConfig?: boolean;
+    systemPrompt?: string;
+    appendSystemPrompt?: string;
+    initialSearchQuery?: string;
+    disableSlashCommands?: boolean;
+    forkSession?: boolean;
+    taskListId?: string;
+    filterByPr?: boolean | number | string;
+    thinkingConfig: ThinkingConfig;
+    onTurnComplete?: (messages: Message[]) => void | Promise<void>;
+};
+export declare function ResumeConversation({ commands, worktreePaths, initialTools, mcpClients, dynamicMcpConfig, debug, mainThreadAgentDefinition, autoConnectIdeFlag, strictMcpConfig, systemPrompt, appendSystemPrompt, initialSearchQuery, disableSlashCommands, forkSession, taskListId, filterByPr, thinkingConfig, onTurnComplete }: Props): React.ReactNode;
+export {};
+//# sourceMappingURL=ResumeConversation.d.ts.map

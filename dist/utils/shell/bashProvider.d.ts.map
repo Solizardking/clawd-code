@@ -1,0 +1,1 @@
+{"version":3,"file":"bashProvider.d.ts","sourceRoot":"","sources":["../../../src/utils/shell/bashProvider.ts"],"names":[],"mappings":"AAwBA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,oBAAoB,CAAA;AAiCvD,wBAAsB,uBAAuB,CAC3C,SAAS,EAAE,MAAM,EACjB,OAAO,CAAC,EAAE;IAAE,YAAY,CAAC,EAAE,OAAO,CAAA;CAAE,GACnC,OAAO,CAAC,aAAa,CAAC,CAkMxB"}

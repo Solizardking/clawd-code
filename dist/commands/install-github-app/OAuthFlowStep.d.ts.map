@@ -1,0 +1,1 @@
+{"version":3,"file":"OAuthFlowStep.d.ts","sourceRoot":"","sources":["../../../src/commands/install-github-app/OAuthFlowStep.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAmD,MAAM,OAAO,CAAC;AAYxE,UAAU,kBAAkB;IAC1B,SAAS,EAAE,CAAC,KAAK,EAAE,MAAM,KAAK,IAAI,CAAC;IACnC,QAAQ,EAAE,MAAM,IAAI,CAAC;CACtB;AAoBD,wBAAgB,aAAa,CAAC,EAC5B,SAAS,EACT,QAAQ,EACT,EAAE,kBAAkB,GAAG,KAAK,CAAC,SAAS,CA4OtC"}

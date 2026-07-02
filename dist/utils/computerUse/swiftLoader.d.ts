@@ -1,0 +1,14 @@
+import type { ComputerUseAPI } from '@ant/computer-use-swift';
+/**
+ * Package's js/index.js reads COMPUTER_USE_SWIFT_NODE_PATH (baked by
+ * build-with-plugins.ts on darwin targets, unset otherwise — falls through to
+ * the node_modules prebuilds/ path). We cache the loaded native module.
+ *
+ * The four @MainActor methods (captureExcluding, captureRegion,
+ * apps.listInstalled, resolvePrepareCapture) dispatch to DispatchQueue.main
+ * and will hang under libuv unless CFRunLoop is pumped — call sites wrap
+ * these in drainRunLoop().
+ */
+export declare function requireComputerUseSwift(): ComputerUseAPI;
+export type { ComputerUseAPI };
+//# sourceMappingURL=swiftLoader.d.ts.map

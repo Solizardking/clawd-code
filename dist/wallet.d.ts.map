@@ -1,0 +1,1 @@
+{"version":3,"file":"wallet.d.ts","sourceRoot":"","sources":["../src/wallet.ts"],"names":[],"mappings":"AAKA,MAAM,MAAM,YAAY,GAAG;IACzB,IAAI,EAAE,MAAM,CAAC;IACb,SAAS,EAAE,MAAM,CAAC;IAClB,IAAI,EAAE,MAAM,CAAC;CACd,CAAC;AA+EF,wBAAgB,YAAY,CAAC,IAAI,SAAY,GAAG,YAAY,CAiB3D;AAED,wBAAgB,WAAW,IAAI,YAAY,EAAE,CAgB5C"}

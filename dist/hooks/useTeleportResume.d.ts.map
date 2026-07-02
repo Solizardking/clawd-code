@@ -1,0 +1,1 @@
+{"version":3,"file":"useTeleportResume.d.ts","sourceRoot":"","sources":["../../src/hooks/useTeleportResume.tsx"],"names":[],"mappings":"AAQA,MAAM,MAAM,mBAAmB,GAAG;IAChC,OAAO,EAAE,MAAM,CAAC;IAChB,gBAAgB,CAAC,EAAE,MAAM,CAAC;IAC1B,gBAAgB,EAAE,OAAO,CAAC;CAC3B,CAAC;AACF,MAAM,MAAM,cAAc,GAAG,QAAQ,GAAG,cAAc,CAAC;AACvD,wBAAgB,iBAAiB,CAAC,MAAM,KAAA,OAqEvC"}

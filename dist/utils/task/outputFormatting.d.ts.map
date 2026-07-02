@@ -1,0 +1,1 @@
+{"version":3,"file":"outputFormatting.d.ts","sourceRoot":"","sources":["../../../src/utils/task/outputFormatting.ts"],"names":[],"mappings":"AAGA,eAAO,MAAM,2BAA2B,SAAU,CAAA;AAClD,eAAO,MAAM,uBAAuB,QAAS,CAAA;AAE7C,wBAAgB,sBAAsB,IAAI,MAAM,CAQ/C;AAED;;;;GAIG;AACH,wBAAgB,gBAAgB,CAC9B,MAAM,EAAE,MAAM,EACd,MAAM,EAAE,MAAM,GACb;IAAE,OAAO,EAAE,MAAM,CAAC;IAAC,YAAY,EAAE,OAAO,CAAA;CAAE,CAa5C"}

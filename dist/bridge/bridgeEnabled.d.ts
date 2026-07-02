@@ -1,0 +1,89 @@
+/**
+ * Runtime check for bridge mode entitlement.
+ *
+ * Remote Control requires a claude.ai subscription (the bridge auths to CCR
+ * with the claude.ai OAuth token). isClaudeAISubscriber() excludes
+ * Bedrock/Vertex/Foundry, apiKeyHelper/gateway deployments, env-var API keys,
+ * and Console API logins — none of which have the OAuth token CCR needs.
+ * See github.com/deshaw/anthropic-issues/issues/24.
+ *
+ * The `feature('BRIDGE_MODE')` guard ensures the GrowthBook string literal
+ * is only referenced when bridge mode is enabled at build time.
+ */
+export declare function isBridgeEnabled(): boolean;
+/**
+ * Blocking entitlement check for Remote Control.
+ *
+ * Returns cached `true` immediately (fast path). If the disk cache says
+ * `false` or is missing, awaits GrowthBook init and fetches the fresh
+ * server value (slow path, max ~5s), then writes it to disk.
+ *
+ * Use at entitlement gates where a stale `false` would unfairly block access.
+ * For user-facing error paths, prefer `getBridgeDisabledReason()` which gives
+ * a specific diagnostic. For render-body UI visibility checks, use
+ * `isBridgeEnabled()` instead.
+ */
+export declare function isBridgeEnabledBlocking(): Promise<boolean>;
+/**
+ * Diagnostic message for why Remote Control is unavailable, or null if
+ * it's enabled. Call this instead of a bare `isBridgeEnabledBlocking()`
+ * check when you need to show the user an actionable error.
+ *
+ * The GrowthBook gate targets on organizationUUID, which comes from
+ * config.oauthAccount — populated by /api/oauth/profile during login.
+ * That endpoint requires the user:profile scope. Tokens without it
+ * (setup-token, CLAUDE_CODE_OAUTH_TOKEN env var, or pre-scope-expansion
+ * logins) leave oauthAccount unpopulated, so the gate falls back to
+ * false and users see a dead-end "not enabled" message with no hint
+ * that re-login would fix it. See CC-1165 / gh-33105.
+ */
+export declare function getBridgeDisabledReason(): Promise<string | null>;
+/**
+ * Runtime check for the env-less (v2) REPL bridge path.
+ * Returns true when the GrowthBook flag `tengu_bridge_repl_v2` is enabled.
+ *
+ * This gates which implementation initReplBridge uses — NOT whether bridge
+ * is available at all (see isBridgeEnabled above). Daemon/print paths stay
+ * on the env-based implementation regardless of this gate.
+ */
+export declare function isEnvLessBridgeEnabled(): boolean;
+/**
+ * Kill-switch for the `cse_*` → `session_*` client-side retag shim.
+ *
+ * The shim exists because compat/convert.go:27 validates TagSession and the
+ * claude.ai frontend routes on `session_*`, while v2 worker endpoints hand out
+ * `cse_*`. Once the server tags by environment_kind and the frontend accepts
+ * `cse_*` directly, flip this to false to make toCompatSessionId a no-op.
+ * Defaults to true — the shim stays active until explicitly disabled.
+ */
+export declare function isCseShimEnabled(): boolean;
+/**
+ * Returns an error message if the current CLI version is below the
+ * minimum required for the v1 (env-based) Remote Control path, or null if the
+ * version is fine. The v2 (env-less) path uses checkEnvLessBridgeMinVersion()
+ * in envLessBridgeConfig.ts instead — the two implementations have independent
+ * version floors.
+ *
+ * Uses cached (non-blocking) GrowthBook config. If GrowthBook hasn't
+ * loaded yet, the default '0.0.0' means the check passes — a safe fallback.
+ */
+export declare function checkBridgeMinVersion(): string | null;
+/**
+ * Default for remoteControlAtStartup when the user hasn't explicitly set it.
+ * When the CCR_AUTO_CONNECT build flag is present (ant-only) and the
+ * tengu_cobalt_harbor GrowthBook gate is on, all sessions connect to CCR by
+ * default — the user can still opt out by setting remoteControlAtStartup=false
+ * in config (explicit settings always win over this default).
+ *
+ * Defined here rather than in config.ts to avoid a direct
+ * config.ts → growthbook.ts import cycle (growthbook.ts → user.ts → config.ts).
+ */
+export declare function getCcrAutoConnectDefault(): boolean;
+/**
+ * Opt-in CCR mirror mode — every local session spawns an outbound-only
+ * Remote Control session that receives forwarded events. Separate from
+ * getCcrAutoConnectDefault (bidirectional Remote Control). Env var wins for
+ * local opt-in; GrowthBook controls rollout.
+ */
+export declare function isCcrMirrorEnabled(): boolean;
+//# sourceMappingURL=bridgeEnabled.d.ts.map

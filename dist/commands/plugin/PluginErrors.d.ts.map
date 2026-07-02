@@ -1,0 +1,1 @@
+{"version":3,"file":"PluginErrors.d.ts","sourceRoot":"","sources":["../../../src/commands/plugin/PluginErrors.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAyB,KAAK,WAAW,EAAE,MAAM,uBAAuB,CAAC;AAChF,wBAAgB,kBAAkB,CAAC,KAAK,EAAE,WAAW,GAAG,MAAM,CA0D7D;AACD,wBAAgB,gBAAgB,CAAC,KAAK,EAAE,WAAW,GAAG,MAAM,GAAG,IAAI,CA8DlE"}

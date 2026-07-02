@@ -1,0 +1,1 @@
+{"version":3,"file":"logout.d.ts","sourceRoot":"","sources":["../../../src/commands/logout/logout.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,KAAK,MAAM,OAAO,CAAC;AAe/B,wBAAsB,aAAa,CAAC,EAClC,eAAuB,EACxB;;CAAA,GAAG,OAAO,CAAC,IAAI,CAAC,CA8BhB;AAGD,wBAAsB,sBAAsB,IAAI,OAAO,CAAC,IAAI,CAAC,CAoB5D;AACD,wBAAsB,IAAI,IAAI,OAAO,CAAC,KAAK,CAAC,SAAS,CAAC,CASrD"}

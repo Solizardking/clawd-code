@@ -1,0 +1,1 @@
+{"version":3,"file":"setup.d.ts","sourceRoot":"","sources":["../../../src/utils/computerUse/setup.ts"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,qBAAqB,EAAE,MAAM,6BAA6B,CAAA;AAMxE;;;;;;;;;;;GAWG;AACH,wBAAgB,mBAAmB,IAAI;IACrC,SAAS,EAAE,MAAM,CAAC,MAAM,EAAE,qBAAqB,CAAC,CAAA;IAChD,YAAY,EAAE,MAAM,EAAE,CAAA;CACvB,CA2BA"}

@@ -1,4 +1,13 @@
-# Clawd Code
+<div align="center">
+
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=26&duration=2600&pause=900&color=14F195&center=true&vCenter=true&width=700&lines=Clawd+Code;Solana-Native+AI+Coding+CLI;Paper-Gated+Perpetuals+Workflows;Wallets+%C2%B7+Charts+%C2%B7+Voice+%C2%B7+Research" alt="Clawd Code" />
+
+[![npm](https://img.shields.io/badge/npm-clawd--code-14F195?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@solana-clawd/clawd-code)
+[![License: MIT](https://img.shields.io/badge/License-MIT-9945FF?style=for-the-badge)](./LICENSE)
+[![Node](https://img.shields.io/badge/Node-18%2B-14F195?style=for-the-badge&logo=nodedotjs&logoColor=white)](#install)
+[![Solana](https://img.shields.io/badge/Solana-mainnet--beta-9945FF?style=for-the-badge&logo=solana&logoColor=white)](#solana-blockchain-harness)
+
+</div>
 
 Curl-installable Solana-native AI coding CLI with local wallet creation and
 paper-gated perpetuals workflows.
@@ -412,3 +421,9 @@ Local runtime files and secrets are intentionally excluded.
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
+<div align="center">
+
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=16&duration=3200&pause=1200&color=9945FF&center=true&vCenter=true&width=560&lines=Built+for+Solana+%C2%B7+Paper-Gated+by+Default;%24CLAWD+%C2%B7+8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump" alt="footer" />
+
+</div>

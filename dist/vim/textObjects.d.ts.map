@@ -1,0 +1,1 @@
+{"version":3,"file":"textObjects.d.ts","sourceRoot":"","sources":["../../src/vim/textObjects.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AASH,MAAM,MAAM,eAAe,GAAG;IAAE,KAAK,EAAE,MAAM,CAAC;IAAC,GAAG,EAAE,MAAM,CAAA;CAAE,GAAG,IAAI,CAAA;AAqBnE;;GAEG;AACH,wBAAgB,cAAc,CAC5B,IAAI,EAAE,MAAM,EACZ,MAAM,EAAE,MAAM,EACd,UAAU,EAAE,MAAM,EAClB,OAAO,EAAE,OAAO,GACf,eAAe,CAejB"}
