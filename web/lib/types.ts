@@ -127,6 +127,10 @@ export interface AppSettings {
   apiKey: string;
   streamingEnabled: boolean;
 
+  // Provider
+  provider: "zai" | "xai" | "anthropic" | "openrouter" | "deepseek";
+  providerKeys: Record<string, string>;
+
   // Permissions
   permissions: {
     autoApprove: Record<string, boolean>;
@@ -135,6 +139,12 @@ export interface AppSettings {
 
   // MCP
   mcpServers: MCPServerConfig[];
+
+  // Telegram relay
+  telegram: {
+    botToken: string;
+    allowedChatId: string;
+  };
 
   // Keybindings
   keybindings: Record<string, string>;

@@ -10,6 +10,17 @@ export const MODELS = [
 
 export const DEFAULT_MODEL = "glm-5.2";
 
+/** Mirrors clawd-code's CLI provider list (src/grok-models.ts) — Z.AI is the default. */
+export const PROVIDERS = [
+  { id: "zai", label: "Z.AI (default)", keyLabel: "ZAI_API_KEY", keyPlaceholder: "zai-...", defaultModel: "glm-5.2" },
+  { id: "xai", label: "xAI (Grok)", keyLabel: "XAI_API_KEY", keyPlaceholder: "xai-...", defaultModel: "grok-4.3" },
+  { id: "anthropic", label: "Anthropic (Claude)", keyLabel: "ANTHROPIC_API_KEY", keyPlaceholder: "sk-ant-...", defaultModel: "claude-sonnet-4-6" },
+  { id: "openrouter", label: "OpenRouter", keyLabel: "OPENROUTER_API_KEY", keyPlaceholder: "sk-or-...", defaultModel: "auto" },
+  { id: "deepseek", label: "DeepSeek", keyLabel: "DEEPSEEK_API_KEY", keyPlaceholder: "sk-...", defaultModel: "deepseek-v4-pro" },
+] as const;
+
+export const DEFAULT_PROVIDER = "zai";
+
 export const API_ROUTES = {
   chat: "/api/chat",
   stream: "/api/stream",

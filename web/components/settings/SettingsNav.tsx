@@ -3,7 +3,9 @@
 import {
   Settings,
   Cpu,
+  Zap,
   Key,
+  Send,
   Shield,
   Server,
   Keyboard,
@@ -14,7 +16,9 @@ import { cn } from "@/lib/utils";
 export type SettingsSection =
   | "general"
   | "model"
+  | "provider"
   | "api"
+  | "telegram"
   | "permissions"
   | "mcp"
   | "keyboard"
@@ -29,7 +33,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "general", label: "General", icon: Settings },
   { id: "model", label: "Model", icon: Cpu },
+  { id: "provider", label: "Provider", icon: Zap },
   { id: "api", label: "API & Auth", icon: Key },
+  { id: "telegram", label: "Telegram", icon: Send },
   { id: "permissions", label: "Permissions", icon: Shield },
   { id: "mcp", label: "MCP Servers", icon: Server },
   { id: "keyboard", label: "Keyboard", icon: Keyboard },

@@ -8,6 +8,7 @@ import { ChatWindow } from "./ChatWindow";
 import { ChatInput } from "./ChatInput";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { AnnouncerProvider } from "@/components/a11y/Announcer";
+import { SettingsModal } from "@/components/settings/SettingsModal";
 
 export function ChatLayout() {
   const { conversations, createConversation, activeConversationId } = useChatStore();
@@ -43,6 +44,7 @@ export function ChatLayout() {
           </main>
         </div>
       </div>
+      <SettingsModal />
     </AnnouncerProvider>
   );
 }

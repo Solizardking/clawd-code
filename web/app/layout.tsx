@@ -30,8 +30,8 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Claude Code",
-  description: "Claude Code — AI-powered development assistant",
+  title: "Clawd Code",
+  description: "Clawd Code — Solana-native AI coding agent, Z.AI (GLM-5.2) by default",
   icons: {
     icon: "/favicon.ico",
   },

@@ -55,7 +55,10 @@ export function ChatInput({ conversationId }: ChatInputProps) {
     let fullText = "";
 
     try {
-      for await (const chunk of streamChat(messages, settings.model, controller.signal)) {
+      for await (const chunk of streamChat(messages, settings.model, controller.signal, {
+        provider: settings.provider,
+        apiKey: settings.providerKeys[settings.provider],
+      })) {
         if (chunk.type === "text" && chunk.content) {
           fullText += chunk.content;
           updateMessage(conversationId, assistantId, {
@@ -87,7 +90,17 @@ export function ChatInput({ conversationId }: ChatInputProps) {
       setIsStreaming(false);
       abortRef.current = null;
     }
-  }, [input, isStreaming, conversationId, conversation, settings.model, addMessage, updateMessage]);
+  }, [
+    input,
+    isStreaming,
+    conversationId,
+    conversation,
+    settings.model,
+    settings.provider,
+    settings.providerKeys,
+    addMessage,
+    updateMessage,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

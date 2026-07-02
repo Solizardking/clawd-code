@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { Conversation, Message, AppSettings, ConversationTag } from "./types";
-import { DEFAULT_MODEL } from "./constants";
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "./constants";
 
 const DEFAULT_SETTINGS: AppSettings = {
   // General
@@ -23,6 +23,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   apiKey: "",
   streamingEnabled: true,
 
+  // Provider — Z.AI is the default across the CLI and this UI.
+  provider: DEFAULT_PROVIDER,
+  providerKeys: {},
+
   // Permissions
   permissions: {
     autoApprove: {
@@ -36,6 +40,12 @@ const DEFAULT_SETTINGS: AppSettings = {
 
   // MCP
   mcpServers: [],
+
+  // Telegram relay — chat/CLI relay only, allowlisted to a single chat id.
+  telegram: {
+    botToken: "",
+    allowedChatId: "",
+  },
 
   // Keybindings
   keybindings: {
@@ -337,6 +347,11 @@ export const useChatStore = create<ChatState>()(
             apiUrl: DEFAULT_SETTINGS.apiUrl,
             streamingEnabled: DEFAULT_SETTINGS.streamingEnabled,
           },
+          provider: {
+            provider: DEFAULT_SETTINGS.provider,
+            providerKeys: DEFAULT_SETTINGS.providerKeys,
+          },
+          telegram: { telegram: DEFAULT_SETTINGS.telegram },
           permissions: { permissions: DEFAULT_SETTINGS.permissions },
           keybindings: { keybindings: DEFAULT_SETTINGS.keybindings },
           data: { telemetryEnabled: DEFAULT_SETTINGS.telemetryEnabled },

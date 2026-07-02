@@ -19,12 +19,19 @@ export interface StreamChunk {
 export async function* streamChat(
   messages: Pick<Message, "role" | "content">[],
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { provider?: string; apiKey?: string }
 ): AsyncGenerator<StreamChunk> {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model, stream: true }),
+    body: JSON.stringify({
+      messages,
+      model,
+      stream: true,
+      provider: options?.provider ?? "zai",
+      apiKey: options?.apiKey,
+    }),
     signal,
   });
 
