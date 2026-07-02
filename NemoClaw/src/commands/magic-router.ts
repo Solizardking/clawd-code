@@ -4,6 +4,7 @@
 import type { PluginLogger, NemoclawdConfig } from "../index.js";
 import {
   buildOpenRouterRequest,
+  buildProviderRequest,
   selectMagicRoute,
   type MagicRouterBudget,
   type MagicRouterLatency,
@@ -30,7 +31,7 @@ function splitTools(value: string | undefined): string[] {
 }
 
 export async function cliMagicRouter(opts: MagicRouterOptions): Promise<void> {
-  const { logger, pluginConfig } = opts;
+  const { logger } = opts;
   const task = opts.task ?? "Pick the best Solana-native model and tools for this request.";
   const selection = selectMagicRoute({
     task,
@@ -40,10 +41,11 @@ export async function cliMagicRouter(opts: MagicRouterOptions): Promise<void> {
     requestedTools: splitTools(opts.tools),
     sessionId: opts.sessionId,
   });
+  const providerRequest = buildProviderRequest(selection, task);
   const request = buildOpenRouterRequest(selection, task);
 
   if (opts.json) {
-    logger.info(JSON.stringify({ selection, openRouterRequest: request }, null, 2));
+    logger.info(JSON.stringify({ selection, providerRequest, openRouterAssistRequest: request }, null, 2));
     return;
   }
 
@@ -55,8 +57,12 @@ export async function cliMagicRouter(opts: MagicRouterOptions): Promise<void> {
   logger.info(`Credential: $${selection.credentialEnv}`);
   logger.info(`Model:      ${selection.model}`);
   logger.info(`Fallbacks:  ${selection.models.join(", ")}`);
+  logger.info(`OR Assist:  ${selection.openRouterModels.join(", ")}`);
   logger.info(`Confidence: ${Math.round(selection.confidence * 100)}%`);
   logger.info(`Reason:     ${selection.reason}`);
+  if (selection.agentWallet) {
+    logger.info(`Wallet:     ${selection.agentWallet.provider}/${selection.agentWallet.name} (${selection.agentWallet.scope})`);
+  }
   logger.info("");
   logger.info("Provider routing:");
   logger.info(JSON.stringify(selection.providerRouting, null, 2));
@@ -67,8 +73,15 @@ export async function cliMagicRouter(opts: MagicRouterOptions): Promise<void> {
   }
   logger.info("");
   logger.info("Apply this route with OpenShell:");
-  logger.info(`  openshell inference set --provider ${pluginConfig.inferenceProvider} --model ${selection.model}`);
+  logger.info(`  openshell provider create --name ${selection.provider} --endpoint ${selection.endpoint} --credential ${selection.credentialEnv}=$${selection.credentialEnv}`);
+  logger.info(`  openshell inference set --provider ${selection.provider} --model ${selection.model}`);
+  if (selection.agentWallet) {
+    logger.info(`  openshell wallet create --name ${selection.agentWallet.name} --scope agent --private`);
+  }
   logger.info("");
-  logger.info("OpenRouter request preview:");
+  logger.info("Provider request preview:");
+  logger.info(JSON.stringify(providerRequest, null, 2));
+  logger.info("");
+  logger.info("OpenRouter assist request preview:");
   logger.info(JSON.stringify(request, null, 2));
 }

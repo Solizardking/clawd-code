@@ -15,6 +15,13 @@ export type MagicRouterIntent =
 export type MagicRouterRisk = "read_only" | "approval_required" | "live_trading";
 export type MagicRouterBudget = "low" | "balanced" | "quality";
 export type MagicRouterLatency = "low" | "balanced" | "deep";
+export type MagicRouterProvider = "zai" | "openrouter";
+
+export const ZAI_BASE_URL = "https://api.z.ai/api/paas/v4";
+export const ZAI_DEFAULT_MODEL = "glm-5.2";
+export const ZAI_FAST_MODEL = "glm-5-turbo";
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const OPENROUTER_AUTO_MODEL = "openrouter/auto";
 
 export interface MagicRouterInput {
   task?: string;
@@ -29,6 +36,15 @@ export interface MagicRouterTool {
   id: string;
   reason: string;
   risk: MagicRouterRisk;
+}
+
+export interface MagicRouterAgentWallet {
+  provider: "openshell";
+  scope: "agent-private";
+  name: string;
+  statePath: string;
+  exportPrivateKey: false;
+  requireHumanApprovalForSigning: boolean;
 }
 
 export interface MagicRouterProviderRouting {
@@ -50,26 +66,31 @@ export interface MagicRouterProviderRouting {
 
 export interface MagicRouterSelection {
   router: "magic-router";
-  provider: "openrouter";
-  endpoint: "https://openrouter.ai/api/v1";
-  credentialEnv: "OPENROUTER_API_KEY";
+  provider: MagicRouterProvider;
+  endpoint: string;
+  credentialEnv: "ZAI_API_KEY" | "OPENROUTER_API_KEY";
   intent: MagicRouterIntent;
   model: string;
   models: string[];
+  openRouterModels: string[];
   providerRouting: MagicRouterProviderRouting;
   toolSet: MagicRouterTool[];
   confidence: number;
   reason: string;
+  agentWallet?: MagicRouterAgentWallet;
   sessionId?: string;
 }
 
 interface IntentProfile {
   intent: MagicRouterIntent;
   keywords: string[];
+  provider?: MagicRouterProvider;
   model: string;
   models: string[];
+  openRouterModels: string[];
   tools: MagicRouterTool[];
   reason: string;
+  agentWallet?: MagicRouterAgentWallet;
 }
 
 const TOOL_SETS = {
@@ -97,72 +118,122 @@ const TOOL_SETS = {
     { id: "helius_account_info", reason: "Inspect account data while debugging Solana code.", risk: "read_only" },
     { id: "helius_das_asset", reason: "Read NFT or compressed asset state.", risk: "read_only" },
   ],
+  openshellWallet: [
+    {
+      id: "openshell_wallet_private_status",
+      reason: "Confirm the agent-scoped OpenShell wallet exists without exporting key material.",
+      risk: "read_only",
+    },
+    {
+      id: "openshell_wallet_sign_request",
+      reason: "Prepare a wallet signing request that still requires explicit human approval.",
+      risk: "approval_required",
+    },
+  ],
 } satisfies Record<string, MagicRouterTool[]>;
 
 const INTENT_PROFILES: IntentProfile[] = [
   {
+    intent: "code",
+    keywords: ["code", "debug", "typescript", "python", "anchor", "program", "sdk", "test"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "anthropic/claude-sonnet-4.5", "openai/gpt-5-mini"],
+    tools: [...TOOL_SETS.code, ...TOOL_SETS.research],
+    reason: "Code tasks default to Z.AI GLM-5.2 for 1M-context engineering work, with OpenRouter kept as an assist route.",
+  },
+  {
+    intent: "deep-reasoning",
+    keywords: ["deep", "reason", "plan", "architecture", "thesis", "strategy", "audit"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "anthropic/claude-sonnet-4.5", "openai/gpt-5"],
+    tools: [...TOOL_SETS.market, ...TOOL_SETS.research],
+    reason: "Deep reasoning defaults to GLM-5.2 thinking mode and uses OpenRouter as a model-routing advisor.",
+  },
+  {
+    intent: "general",
+    keywords: ["nvidia", "nim", "nemotron", "private", "openshell", "open shell", "agent wallet"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [
+      OPENROUTER_AUTO_MODEL,
+      "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+    ],
+    tools: [...TOOL_SETS.code, ...TOOL_SETS.openshellWallet, ...TOOL_SETS.wallet],
+    reason: "The NVIDIA GLM agent uses GLM-5.2 as the private default and keeps NVIDIA Nemotron routes available through OpenRouter assist.",
+    agentWallet: {
+      provider: "openshell",
+      scope: "agent-private",
+      name: "nvidia-glm-5-2",
+      statePath: "~/.nemoclawd/openshell-wallets/nvidia-glm-5-2",
+      exportPrivateKey: false,
+      requireHumanApprovalForSigning: true,
+    },
+  },
+  {
     intent: "solana-trading",
     keywords: ["trade", "buy", "sell", "snipe", "pump", "quote", "position", "exit", "entry"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "anthropic/claude-sonnet-4.5", "openai/gpt-5-mini"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "anthropic/claude-sonnet-4.5", "openai/gpt-5-mini"],
     tools: [...TOOL_SETS.market, ...TOOL_SETS.wallet, ...TOOL_SETS.execution],
-    reason: "Trading needs market data, wallet context, quote tools, and approval-gated execution.",
+    reason: "Trading uses GLM-5.2 for planning, Solana read tools, wallet context, and approval-gated execution.",
   },
   {
     intent: "solana-research",
     keywords: ["research", "scan", "trend", "token", "market", "alpha", "narrative", "rank"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "anthropic/claude-sonnet-4.5", "google/gemini-3-flash-preview"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "anthropic/claude-sonnet-4.5", "google/gemini-3-flash-preview"],
     tools: [...TOOL_SETS.market, ...TOOL_SETS.research],
-    reason: "Research benefits from OpenRouter prompt-aware model choice plus read-only market tools.",
+    reason: "Research defaults to GLM-5.2 and uses OpenRouter prompt-aware model choice as a second opinion.",
   },
   {
     intent: "wallet-risk",
     keywords: ["wallet", "pnl", "risk", "exposure", "balance", "drawdown", "holder"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "openai/gpt-5-mini", "anthropic/claude-sonnet-4.5"],
+    provider: "zai",
+    model: ZAI_DEFAULT_MODEL,
+    models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "openai/gpt-5-mini", "anthropic/claude-sonnet-4.5"],
     tools: [...TOOL_SETS.wallet, ...TOOL_SETS.market],
     reason: "Wallet risk needs deterministic read-only wallet and transaction inspection tools.",
   },
   {
-    intent: "code",
-    keywords: ["code", "debug", "typescript", "python", "anchor", "program", "sdk", "test"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "anthropic/claude-sonnet-4.5", "openai/gpt-5-mini"],
-    tools: [...TOOL_SETS.code, ...TOOL_SETS.research],
-    reason: "Code tasks need stronger reasoning and chain/account inspection tools.",
-  },
-  {
     intent: "vision",
     keywords: ["image", "vision", "screenshot", "chart", "meme", "avatar"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "google/gemini-3-flash-preview", "openai/gpt-5-mini"],
+    provider: "openrouter",
+    model: OPENROUTER_AUTO_MODEL,
+    models: [OPENROUTER_AUTO_MODEL, "google/gemini-3-flash-preview", "openai/gpt-5-mini"],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "google/gemini-3-flash-preview", "openai/gpt-5-mini"],
     tools: [...TOOL_SETS.research],
     reason: "Vision tasks should allow OpenRouter to pick a multimodal model.",
   },
   {
     intent: "voice",
     keywords: ["voice", "speech", "audio", "talk", "tts", "transcribe"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "openai/gpt-5-mini"],
+    provider: "openrouter",
+    model: OPENROUTER_AUTO_MODEL,
+    models: [OPENROUTER_AUTO_MODEL, "openai/gpt-5-mini"],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "openai/gpt-5-mini"],
     tools: [...TOOL_SETS.research],
     reason: "Voice tasks need low-latency model selection and minimal read-only tools.",
   },
   {
     intent: "fast-chat",
     keywords: ["quick", "fast", "short", "latency", "now"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "openai/gpt-5-mini:nitro", "google/gemini-3-flash-preview:nitro"],
+    provider: "zai",
+    model: ZAI_FAST_MODEL,
+    models: [ZAI_FAST_MODEL, ZAI_DEFAULT_MODEL],
+    openRouterModels: [OPENROUTER_AUTO_MODEL, "openai/gpt-5-mini:nitro", "google/gemini-3-flash-preview:nitro"],
     tools: [...TOOL_SETS.market],
-    reason: "Fast chat prioritizes throughput and a compact read-only tool set.",
-  },
-  {
-    intent: "deep-reasoning",
-    keywords: ["deep", "reason", "plan", "architecture", "thesis", "strategy", "audit"],
-    model: "openrouter/auto",
-    models: ["openrouter/auto", "anthropic/claude-sonnet-4.5", "openai/gpt-5"],
-    tools: [...TOOL_SETS.market, ...TOOL_SETS.research],
-    reason: "Deep reasoning should let OpenRouter choose from stronger models with fallbacks.",
+    reason: "Fast chat uses GLM-5 Turbo by default while OpenRouter keeps low-latency fallbacks available.",
   },
 ];
 
@@ -191,10 +262,12 @@ function chooseProfile(task: string): { profile: IntentProfile; score: number } 
       profile: {
         intent: "general",
         keywords: [],
-        model: "openrouter/auto",
-        models: ["openrouter/auto", "openai/gpt-5-mini", "anthropic/claude-sonnet-4.5"],
+        provider: "zai",
+        model: ZAI_DEFAULT_MODEL,
+        models: [ZAI_DEFAULT_MODEL, ZAI_FAST_MODEL],
+        openRouterModels: [OPENROUTER_AUTO_MODEL, "openai/gpt-5-mini", "anthropic/claude-sonnet-4.5"],
         tools: [...TOOL_SETS.market],
-        reason: "General task: use OpenRouter Auto Router and keep tools read-only by default.",
+        reason: "General task: use Z.AI GLM-5.2 by default, with OpenRouter Auto Router available as an assist route.",
       },
       score: 0,
     };
@@ -230,6 +303,7 @@ export function selectMagicRoute(input: MagicRouterInput = {}): MagicRouterSelec
   const risk = input.risk ?? "approval_required";
   const { profile, score } = chooseProfile(task);
   const toolSet = routeTools(profile, { ...input, risk });
+  const provider = profile.provider ?? "zai";
   const requireParameters = toolSet.length > 0;
   const providerRouting: MagicRouterProviderRouting = {
     allow_fallbacks: true,
@@ -252,25 +326,59 @@ export function selectMagicRoute(input: MagicRouterInput = {}): MagicRouterSelec
 
   return {
     router: "magic-router",
-    provider: "openrouter",
-    endpoint: "https://openrouter.ai/api/v1",
-    credentialEnv: "OPENROUTER_API_KEY",
+    provider,
+    endpoint: provider === "zai" ? ZAI_BASE_URL : OPENROUTER_BASE_URL,
+    credentialEnv: provider === "zai" ? "ZAI_API_KEY" : "OPENROUTER_API_KEY",
     intent: profile.intent,
     model: profile.model,
     models: profile.models,
+    openRouterModels: profile.openRouterModels,
     providerRouting,
     toolSet,
     confidence,
     reason: profile.reason,
+    agentWallet: profile.agentWallet,
     sessionId: input.sessionId,
   };
 }
 
-export function buildOpenRouterRequest(selection: MagicRouterSelection, prompt: string): Record<string, unknown> {
+export function buildProviderRequest(selection: MagicRouterSelection, prompt: string): Record<string, unknown> {
+  const tools = selection.toolSet.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.id,
+      description: tool.reason,
+    },
+  }));
+
+  if (selection.provider === "openrouter") {
+    return buildOpenRouterRequest(selection, prompt);
+  }
+
   return {
     model: selection.model,
-    models: selection.models,
     messages: [{ role: "user", content: prompt }],
+    thinking: { type: "enabled" },
+    reasoning_effort: "max",
+    tools,
+  };
+}
+
+export function buildOpenRouterRequest(selection: MagicRouterSelection, prompt: string): Record<string, unknown> {
+  const models = selection.openRouterModels.length > 0
+    ? selection.openRouterModels
+    : [OPENROUTER_AUTO_MODEL];
+
+  return {
+    model: models[0],
+    models,
+    messages: [
+      {
+        role: "system",
+        content: "You are the Nemo Clawd Magic Router. Recommend the best OpenRouter fallback model and tool posture for this Solana-native task.",
+      },
+      { role: "user", content: prompt },
+    ],
     provider: selection.providerRouting,
     tools: selection.toolSet.map((tool) => ({
       type: "function",

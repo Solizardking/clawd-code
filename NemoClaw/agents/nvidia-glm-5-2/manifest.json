@@ -1,0 +1,53 @@
+{
+  "$schema": "https://nemoclawd.local/schemas/agent-manifest.v1.json",
+  "id": "nvidia-glm-5-2-openshell",
+  "name": "NVIDIA GLM 5.2 OpenShell Agent",
+  "runtime": "nemoclawd",
+  "description": "Solana-native Nemo Clawd agent that defaults to Z.AI GLM-5.2 and keeps NVIDIA Nemotron routes available through OpenRouter assist.",
+  "solanaNative": true,
+  "provider": {
+    "primary": "zai",
+    "credentialEnv": "ZAI_API_KEY",
+    "baseUrl": "https://api.z.ai/api/paas/v4",
+    "model": "glm-5.2",
+    "thinking": "enabled",
+    "reasoningEffort": "max"
+  },
+  "openRouterAssist": {
+    "credentialEnv": "OPENROUTER_API_KEY",
+    "baseUrl": "https://openrouter.ai/api/v1",
+    "fallbackModels": [
+      "openrouter/auto",
+      "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/nemotron-3-super-120b-a12b:free"
+    ]
+  },
+  "wallet": {
+    "provider": "openshell",
+    "scope": "agent-private",
+    "name": "nvidia-glm-5-2",
+    "statePath": "~/.nemoclawd/openshell-wallets/nvidia-glm-5-2",
+    "exportPrivateKey": false,
+    "requireHumanApprovalForSigning": true,
+    "cluster": "mainnet-beta"
+  },
+  "toolPolicy": {
+    "defaultRisk": "read_only",
+    "liveTradingRequires": [
+      "LIVE_TRADING=true",
+      "OPERATOR_CONFIRMED=true",
+      "PERPS_SIM_ONLY=false"
+    ],
+    "allowedTools": [
+      "helius_account_info",
+      "helius_das_asset",
+      "helius_transactions",
+      "openshell_wallet_private_status",
+      "openshell_wallet_sign_request",
+      "solana_wallet_tokens",
+      "solana_wallet_pnl",
+      "solana_price",
+      "solana_token_info"
+    ]
+  }
+}
