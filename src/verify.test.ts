@@ -3,12 +3,11 @@ import assert from 'node:assert/strict';
 import { EnvironmentVerifier } from './verify.js';
 
 /**
- * Focused on the synchronous, side-effect-free checks. checkXaiReachable()
- * hits the network and is intentionally excluded — it's exercised manually
- * via `clawd-code verify`, not in unit tests.
+ * Focused on synchronous safety/config checks. Optional live provider reachability
+ * is skipped unless its API key is present.
  */
 
-const ENV_KEYS = ['LIVE_TRADING', 'OPERATOR_CONFIRMED', 'PERPS_SIM_ONLY', 'XAI_API_KEY', 'HELIUS_RPC_URL', 'SOLANA_RPC_URL'] as const;
+const ENV_KEYS = ['LIVE_TRADING', 'OPERATOR_CONFIRMED', 'PERPS_SIM_ONLY', 'ZAI_API_KEY', 'XAI_API_KEY', 'HELIUS_RPC_URL', 'SOLANA_RPC_URL'] as const;
 const savedEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {

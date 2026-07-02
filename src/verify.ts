@@ -2,8 +2,7 @@
  * Clawd Code — Environment Verification & Preflight
  * (Adapted from clawd-grok/src/verify/environment.ts)
  *
- * Now also pings xAI /v1/models to confirm the default provider is reachable
- * with the configured XAI_API_KEY.
+ * Checks the default Z.AI key and optional provider keys.
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -22,12 +21,13 @@ export class EnvironmentVerifier {
   private results: VerifyResult[] = [];
 
   /**
-   * Run all preflight checks (including async xAI /v1/models ping).
+   * Run all preflight checks.
    */
   async verifyAll(): Promise<VerifyResult[]> {
     this.results = [];
     this.checkNodeVersion();
-    this.checkXaiKey();
+    this.checkZaiKey();
+    this.checkXaiKeyOptional();
     await this.checkXaiReachable();
     this.checkHeliusRpc();
     this.checkPhoenixUrl();
@@ -49,13 +49,22 @@ export class EnvironmentVerifier {
     });
   }
 
-  private checkXaiKey(): void {
+  private checkZaiKey(): void {
+    const key = process.env.ZAI_API_KEY;
+    this.results.push({
+      name: 'Z.AI API key',
+      ok: !!key,
+      message: key ? 'ZAI_API_KEY set' : 'ZAI_API_KEY not set',
+      remedy: !key ? 'Get a key from https://z.ai and set ZAI_API_KEY in ~/.clawd-code/.env' : undefined,
+    });
+  }
+
+  private checkXaiKeyOptional(): void {
     const key = process.env.XAI_API_KEY;
     this.results.push({
-      name: 'xAI Grok API key',
-      ok: !!key,
-      message: key ? 'XAI_API_KEY set' : 'XAI_API_KEY not set',
-      remedy: !key ? 'Get key from https://console.x.ai and set in ~/.clawd-code/.env' : undefined,
+      name: 'xAI Grok API key (optional)',
+      ok: true,
+      message: key ? 'XAI_API_KEY set' : 'XAI_API_KEY not set (optional)',
     });
   }
 
@@ -70,9 +79,8 @@ export class EnvironmentVerifier {
     if (!client) {
       this.results.push({
         name: 'xAI /v1/models reachability',
-        ok: false,
+        ok: true,
         message: '(skipped — no XAI_API_KEY)',
-        remedy: 'Set XAI_API_KEY in ~/.clawd-code/.env',
       });
       return;
     }

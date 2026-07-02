@@ -8,7 +8,8 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { CLAWD_MINT, arena } from './arena.js';
 import { loadClawdEnv } from './env.js';
-import { DEFAULT_MODEL } from './grok-models.js';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './grok-models.js';
+import { getZaiEnvConfig } from './zai.js';
 import { createWallet, listWallets } from './wallet.js';
 
 const CLAWD_ENV = loadClawdEnv();
@@ -23,15 +24,29 @@ type JsonRpcResponse<T = unknown> = {
   result?: T;
 };
 
-function aiModeConfig(): Record<string, string | number> {
+function aiModeConfig(): any {
   const env = loadClawdEnv();
+  const zai = getZaiEnvConfig(env);
   return {
-    provider: env.CLAWD_PROVIDER || 'xai',
+    provider: env.CLAWD_PROVIDER || DEFAULT_PROVIDER,
     model: env.CLAWD_MODEL || DEFAULT_MODEL,
     xaiApiKey: env.XAI_API_KEY || '',
+    zaiApiKey: env.ZAI_API_KEY || '',
+    zaiBaseUrl: zai.baseUrl,
+    zaiAgentBaseUrl: zai.agentBaseUrl,
+    zaiChartModel: zai.chartModel,
+    zaiChartVisionModel: zai.chartVisionModel,
+    zaiThinking: zai.thinkingType,
+    zaiReasoningEffort: zai.reasoningEffort,
+    zaiVisionModel: zai.visionModel,
+    zaiTradeVisionModel: zai.tradeVisionModel,
+    zaiImageModel: zai.imageModel,
     deepSeekApiKey: env.DEEPSEEK_API_KEY || '',
     deepSeekBaseUrl: env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
     agentCount: parseInt(env.CLAWD_AGENT_COUNT || '4', 10),
+    rpcUrl: env.SOLANA_RPC_URL || env.HELIUS_RPC_URL || HELIUS_RPC,
+    liveTrading: env.LIVE_TRADING === 'true',
+    operatorConfirmed: env.OPERATOR_CONFIRMED === 'true',
   };
 }
 
@@ -242,6 +257,26 @@ export async function cmdGoal(args: string[]): Promise<void> {
     const { TradeMode } = await import('./modes/trade.js');
     const mode = new TradeMode({});
     await mode.run([goal]);
+  } else if (
+    lower.includes('chain') ||
+    lower.includes('solana account') ||
+    lower.includes('wallet balance') ||
+    lower.includes('transaction signature') ||
+    lower.includes('blockhash') ||
+    lower.includes('program account')
+  ) {
+    console.log(`[GOAL] Routing to CHAIN HARNESS: ${goal}`);
+    await cmdChain(['ask', goal]);
+  } else if (
+    lower.includes('chart') ||
+    lower.includes('screenshot') ||
+    lower.includes('slide') ||
+    lower.includes('poster') ||
+    lower.includes('ppt') ||
+    lower.includes('deck')
+  ) {
+    console.log(`[GOAL] Routing to CHART AGENT: ${goal}`);
+    await cmdChart([goal]);
   } else if (lower.includes('research') || lower.includes('analyze')) {
     console.log(`[GOAL] Routing to RESEARCH MODE: ${goal}`);
     const { ResearchMode } = await import('./modes/research.js');
@@ -264,6 +299,26 @@ export async function cmdGoal(args: string[]): Promise<void> {
     const mode = new CodeMode(aiModeConfig());
     await mode.run([goal]);
   }
+}
+
+export async function cmdChain(args: string[]): Promise<void> {
+  const { ChainMode } = await import('./modes/chain.js');
+  await new ChainMode(aiModeConfig()).run(args);
+}
+
+export async function cmdChart(args: string[]): Promise<void> {
+  const { ChartMode } = await import('./modes/chart.js');
+  await new ChartMode(aiModeConfig()).run(args);
+}
+
+export async function cmdSlides(args: string[]): Promise<void> {
+  const { ChartMode } = await import('./modes/chart.js');
+  await new ChartMode(aiModeConfig()).run(['--slides', ...args]);
+}
+
+export async function cmdPoster(args: string[]): Promise<void> {
+  const { ChartMode } = await import('./modes/chart.js');
+  await new ChartMode(aiModeConfig()).run(['--poster', ...args]);
 }
 
 export async function cmdSignals(args: string[]): Promise<void> {
@@ -295,11 +350,16 @@ export async function cmdHelp(args: string[]): Promise<void> {
   console.log('\n╔════════════════════════════════════════════════════════╗');
   console.log('║  CLAWD CODE — Help                                     ║');
   console.log('╠════════════════════════════════════════════════════════╣');
-  console.log('║  MODES: code | trade | research | image | voice | repl║');
+  console.log('║  MODES: code | chain | chart | trade | research       ║');
+  console.log('║         image | voice | repl                          ║');
   console.log('║                                                       ║');
   console.log('║  GLOBAL COMMANDS:                                      ║');
   console.log('║  perps           Perps dashboard                       ║');
   console.log('║  wallet [sub]    Wallet ops (create|list|import)      ║');
+  console.log('║  chain [sub]     Solana RPC blockchain harness         ║');
+  console.log('║  chart [args]    GLM-5.2 + GLM-5V charting agent       ║');
+  console.log('║  slides [args]   GLM Slide/Poster Agent deck export    ║');
+  console.log('║  poster [args]   GLM Slide/Poster Agent poster export  ║');
   console.log('║  balance [w]     Wallet balance snapshot               ║');
   console.log('║  send [args]     Send SOL or SPL tokens                ║');
   console.log('║  price [sym]     Token price via Birdeye              ║');
@@ -309,8 +369,8 @@ export async function cmdHelp(args: string[]): Promise<void> {
   console.log('║  strategies      Vulcan strategy runners               ║');
   console.log('║  arena [sub]     Agent Arena: mint|register|fetch|review║');
   console.log('║  agents          Clawd agent registry                  ║');
-  console.log('║  models          Model registry (Grok+Claude+DeepSeek) ║');
-  console.log('║  provider        Switch xai/anthropic/openrouter/ds    ║');
+  console.log('║  models          Model registry (Z.AI+Grok+Claude)     ║');
+  console.log('║  provider        Switch zai/xai/anthropic/openrouter/ds║');
   console.log('║  goal [text]     Natural language intent router        ║');
   console.log('║  verify          Preflight environment checks          ║');
   console.log('║                                                       ║');

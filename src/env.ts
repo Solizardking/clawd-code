@@ -39,10 +39,10 @@ export function parseEnvFile(path: string): Record<string, string> {
 }
 
 /**
- * Minimal Grok config.toml parser.
+ * Minimal Grok-compatible config.toml parser.
  * Supports the subset of TOML we actually use:
  *   [models]
- *   default = "grok-4.3"
+ *   default = "glm-5.2"
  *
  *   [model.grok-fast]
  *   model = "grok-4.3-fast"
@@ -118,7 +118,7 @@ export function parseGrokConfigToml(path: string): {
     }
   }
 
-  // Default model for the harness is CLAWD_MODEL (or xai default in caller).
+  // Default model for the harness is CLAWD_MODEL (or provider default in caller).
   return { flat, defaultModel: flat.CLAWD_MODEL, modelAliases };
 }
 

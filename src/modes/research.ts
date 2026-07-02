@@ -1,16 +1,16 @@
 /**
  * Clawd Code — RESEARCH MODE
- * Multi-agent deep research. Default: xAI Grok (grok-4.20-multi-agent) with
- * web_search + x_search + code_interpreter. Streaming supported for all four
- * providers.
+ * Deep research. Default: Z.AI GLM-5.2 with thinking mode. Streaming supported
+ * for Z.AI, xAI, Anthropic, and OpenRouter.
  */
 
 import { createAnthropicClient, DEFAULT_CLAUDE_MODEL, isClaudeModel } from '../anthropic.js';
 import { createDeepSeekClient } from '../deepseek.js';
 import { loadClawdEnv } from '../env.js';
 import { DEFAULT_RESEARCH_MODEL, normalizeModelId } from '../grok-models.js';
-import { createOpenRouterClient } from '../openrouter.js';
+import { createOpenRouterClient, selectOpenRouterModel } from '../openrouter.js';
 import { createXaiClient, type XaiTextResponse } from '../xai.js';
+import { createZaiClient, ZAI_DEFAULT_MODEL, type ZaiReasoningEffort, type ZaiThinkingType } from '../zai.js';
 
 interface ResearchConfig {
   provider?: string;
@@ -21,6 +21,10 @@ interface ResearchConfig {
   anthropicApiKey?: string;
   deepSeekApiKey?: string;
   deepSeekBaseUrl?: string;
+  zaiApiKey?: string;
+  zaiBaseUrl?: string;
+  zaiThinking?: ZaiThinkingType;
+  zaiReasoningEffort?: ZaiReasoningEffort;
 }
 
 const RESEARCH_SYSTEM = `You are Clawd Research — a precise, source-aware technical researcher. Synthesize findings across sources. Cite evidence. Flag what requires live verification. Be concise and structured.`;
@@ -63,7 +67,8 @@ export class ResearchMode {
   }
 
   private resolveProvider(): string {
-    const p = this.config.provider ?? 'xai';
+    const p = this.config.provider ?? 'zai';
+    if (p === 'zai' || String(this.config.model ?? '').startsWith('glm-')) return 'zai';
     if (p === 'anthropic' || isClaudeModel(this.config.model ?? '')) return 'anthropic';
     if (p === 'deepseek' || String(this.config.model ?? '').startsWith('deepseek-')) return 'deepseek';
     if (p === 'openrouter') return 'openrouter';
@@ -132,15 +137,57 @@ export class ResearchMode {
           console.error('[RESEARCH MODE] OPENROUTER_API_KEY not set.');
           return;
         }
+        const selection = selectOpenRouterModel({
+          prompt: query,
+          mode: 'research',
+          requestedModel: this.config.model,
+          env,
+        });
+        console.log(
+          `[RESEARCH MODE] OpenRouter ${selection.explicit ? 'model' : 'route'}: ${selection.model}` +
+            `${selection.explicit ? '' : ` (${selection.route}: ${selection.reason})`}`,
+        );
         for await (const chunk of client.stream({
-          model: this.config.model ?? client.getDefaultModel(),
+          model: selection.model,
           messages: [
             { role: 'system', content: RESEARCH_SYSTEM },
             { role: 'user', content: query },
           ],
+          reasoning: selection.reasoning,
           max_tokens: 8096,
         })) {
           if (chunk.content) process.stdout.write(chunk.content);
+        }
+        process.stdout.write('\n');
+        return;
+      }
+
+      if (provider === 'zai') {
+        const client = createZaiClient(this.config.zaiApiKey, this.config.zaiBaseUrl);
+        if (!client) {
+          console.error('[RESEARCH MODE] ZAI_API_KEY not set.');
+          return;
+        }
+        const useModel = model.startsWith('glm-') ? model : ZAI_DEFAULT_MODEL;
+        console.log(
+          `[RESEARCH MODE] Streaming Z.AI/${useModel}` +
+            ` (thinking: ${this.config.zaiThinking ?? 'enabled'}, effort: ${this.config.zaiReasoningEffort ?? 'max'})...`,
+        );
+        for await (const chunk of client.streamChat({
+          model: useModel,
+          messages: [
+            { role: 'system', content: RESEARCH_SYSTEM },
+            { role: 'user', content: query },
+          ],
+          maxTokens: 8096,
+          temperature: 0.2,
+          thinking: this.config.zaiThinking ?? 'enabled',
+          reasoningEffort: this.config.zaiReasoningEffort ?? 'max',
+        })) {
+          if (chunk.reasoning && process.env.ZAI_SHOW_THINKING === 'true') {
+            process.stdout.write(`\x1b[2m${chunk.reasoning}\x1b[0m`);
+          }
+          if (chunk.text) process.stdout.write(chunk.text);
         }
         process.stdout.write('\n');
         return;
@@ -199,14 +246,47 @@ export class ResearchMode {
         const client = createOpenRouterClient(env);
         if (!client) return { content: 'OPENROUTER_API_KEY not set.', citations: [] };
 
-        const useModel = this.config.model ?? client.getDefaultModel();
-        console.log(`[RESEARCH MODE] Running OpenRouter/${useModel}...`);
+        const selection = selectOpenRouterModel({
+          prompt: query,
+          mode: 'research',
+          requestedModel: this.config.model,
+          env,
+        });
+        console.log(
+          `[RESEARCH MODE] Running OpenRouter/${selection.model}` +
+            `${selection.explicit ? '' : ` (${selection.route}: ${selection.reason})`}...`,
+        );
         const result = await client.prompt(query, {
-          model: useModel,
+          model: selection.model,
           systemPrompt: RESEARCH_SYSTEM,
+          reasoning: selection.route === 'fast' ? false : undefined,
+          reasoningEffort: selection.reasoning?.effort,
           maxTokens: 8096,
         });
         return { content: result.content, citations: [] };
+      }
+
+      if (provider === 'zai') {
+        const client = createZaiClient(this.config.zaiApiKey, this.config.zaiBaseUrl);
+        if (!client) return { content: 'ZAI_API_KEY not set.', citations: [] };
+
+        const useModel = model.startsWith('glm-') ? model : ZAI_DEFAULT_MODEL;
+        console.log(
+          `[RESEARCH MODE] Running Z.AI/${useModel}` +
+            ` (thinking: ${this.config.zaiThinking ?? 'enabled'}, effort: ${this.config.zaiReasoningEffort ?? 'max'})...`,
+        );
+        const response = await client.chat({
+          model: useModel,
+          messages: [
+            { role: 'system', content: RESEARCH_SYSTEM },
+            { role: 'user', content: query },
+          ],
+          maxTokens: 8096,
+          temperature: 0.2,
+          thinking: this.config.zaiThinking ?? 'enabled',
+          reasoningEffort: this.config.zaiReasoningEffort ?? 'max',
+        });
+        return { content: response.content, citations: [] };
       }
 
       // xAI — use responses API with web_search + x_search + code_interpreter tools

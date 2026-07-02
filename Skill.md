@@ -212,12 +212,24 @@ Notable flags: `PROACTIVE`, `KAIROS`, `BRIDGE_MODE`, `VOICE_MODE`, `COORDINATOR_
 
 | Variable           | Purpose                           |
 |--------------------|-----------------------------------|
-| `XAI_API_KEY`    | xAI Grok API key (default provider)|
+| `ZAI_API_KEY`    | Z.AI API key for GLM-5.2 / GLM-5V / GLM-Image (default provider)|
+| `ZAI_AGENT_BASE_URL` | Z.AI Agent API base URL for `slides_glm_agent` |
+| `ZAI_CHART_MODEL` | Chart/report planning model (`glm-5.2`) |
+| `ZAI_CHART_VISION_MODEL` | Chart mode vision model (`glm-5v-turbo`) |
+| `ZAI_THINKING`   | Z.AI thinking mode (`enabled` or `disabled`) |
+| `ZAI_REASONING_EFFORT` | GLM effort: `max`, `xhigh`, `high`, `medium`, `low`, `minimal`, `none` |
+| `XAI_API_KEY`    | xAI Grok API key (optional provider + voice agent)|
 | `ANTHROPIC_API_KEY` | Anthropic Claude API key       |
 | `DEEPSEEK_API_KEY` | DeepSeek API key               |
 | `OPENROUTER_API_KEY` | OpenRouter API key            |
+| `OPENROUTER_NEMO_MODEL1` | Balanced/free OpenRouter Nemo route |
+| `OPENROUTER_NEMO_MODEL2` | Most-intelligent OpenRouter Nemo route |
+| `OPENROUTER_NEMO_MODEL3` | Fast/free OpenRouter Nemo route |
 | `HELIUS_API_KEY` | Helius RPC/webhook access         |
 | `SOLANA_RPC_URL` | Custom Solana RPC endpoint        |
+| `SOLANA_CLUSTER` | Solana harness cluster label      |
+| `SOLANA_COMMITMENT` | Solana harness commitment       |
+| `SOLANA_HARNESS_READONLY` | Blocks mutation RPC by default |
 | `LIVE_TRADING`   | Enable live perps trading (default: false)|
 
 ## MCP Tool Integration
@@ -241,5 +253,6 @@ Clawd Code connects to multiple MCP servers for Solana operations:
 6. Respect the permission system — tools that modify state must implement `checkPermissions()`.
 7. Use lazy imports when adding dependencies that could create circular references.
 8. Always default to PAPER mode for trades unless LIVE_TRADING is explicitly enabled.
-9. Never hardcode Solana addresses, transaction signatures, or prices — fetch them from RPC.
-10. Update this file as project conventions evolve.
+9. Use `clawd-code chain` for Solana RPC inspection and `chain ask` for Z.AI-assisted harness planning.
+10. Never hardcode Solana addresses, transaction signatures, or prices — fetch them from RPC.
+11. Update this file as project conventions evolve.

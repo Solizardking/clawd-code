@@ -1,7 +1,7 @@
 /**
  * Clawd Code — CODE MODE
  * Write, review, and ship production code
- * Default provider: xAI Grok (grok-4.3). Streams via SSE like Anthropic & OpenRouter.
+ * Default provider: Z.AI GLM-5.2. Streams via SSE like Anthropic & OpenRouter.
  */
 
 import { execSync } from 'node:child_process';
@@ -16,8 +16,9 @@ import {
   normalizeModelId,
   resolveModelForMode,
 } from '../grok-models.js';
-import { createOpenRouterClient } from '../openrouter.js';
+import { createOpenRouterClient, selectOpenRouterModel } from '../openrouter.js';
 import { createXaiClient } from '../xai.js';
+import { createZaiClient, ZAI_DEFAULT_MODEL, type ZaiReasoningEffort, type ZaiThinkingType } from '../zai.js';
 
 const CODE_SYSTEM = `You are Clawd Code. Ship production TypeScript/Solana code only. No prose. Just code with brief inline comments. Include imports, types, error handling. Format for .ts files.`;
 
@@ -29,6 +30,10 @@ interface CodeConfig {
   anthropicApiKey?: string;
   deepSeekApiKey?: string;
   deepSeekBaseUrl?: string;
+  zaiApiKey?: string;
+  zaiBaseUrl?: string;
+  zaiThinking?: ZaiThinkingType;
+  zaiReasoningEffort?: ZaiReasoningEffort;
 }
 
 export class CodeMode {
@@ -76,7 +81,8 @@ export class CodeMode {
   }
 
   private resolveProvider(): string {
-    const p = this.config.provider as string;
+    const p = (this.config.provider ?? 'zai') as string;
+    if (p === 'zai' || String(this.config.model ?? '').startsWith('glm-')) return 'zai';
     if (p === 'anthropic' || isClaudeModel(this.config.model ?? '')) return 'anthropic';
     if (p === 'deepseek' || String(this.config.model ?? '').startsWith('deepseek-')) return 'deepseek';
     if (p === 'openrouter') return 'openrouter';
@@ -134,18 +140,57 @@ export class CodeMode {
         const env = loadClawdEnv();
         const client = createOpenRouterClient(env);
         if (!client) return this.fallbackCode(prompt, 'OPENROUTER_API_KEY not set');
+        const selection = selectOpenRouterModel({
+          prompt,
+          mode: 'code',
+          requestedModel: this.config.model,
+          env,
+        });
+        process.stdout.write(
+          `[CODE MODE] OpenRouter ${selection.explicit ? 'model' : 'route'}: ${selection.model}` +
+            `${selection.explicit ? '' : ` (${selection.route}: ${selection.reason})`}\n\n`,
+        );
 
         for await (const chunk of client.stream({
-          model: this.config.model?.startsWith('grok-') ? client.getDefaultModel() : (this.config.model ?? client.getDefaultModel()),
+          model: selection.model,
           messages: [
             { role: 'system', content: CODE_SYSTEM },
             { role: 'user', content: prompt },
           ],
+          reasoning: selection.reasoning,
           max_tokens: 8096,
         })) {
           if (chunk.content) {
             process.stdout.write(chunk.content);
             chunks.push(chunk.content);
+          }
+        }
+        process.stdout.write('\n');
+        return chunks.join('');
+      }
+
+      if (provider === 'zai') {
+        const client = createZaiClient(this.config.zaiApiKey, this.config.zaiBaseUrl);
+        if (!client) return this.fallbackCode(prompt, 'ZAI_API_KEY not set');
+
+        const useModel = model.startsWith('glm-') ? model : ZAI_DEFAULT_MODEL;
+        for await (const chunk of client.streamChat({
+          model: useModel,
+          messages: [
+            { role: 'system', content: CODE_SYSTEM },
+            { role: 'user', content: prompt },
+          ],
+          maxTokens: 8096,
+          temperature: 1.0,
+          thinking: this.config.zaiThinking ?? 'enabled',
+          reasoningEffort: this.config.zaiReasoningEffort ?? 'max',
+        })) {
+          if (chunk.reasoning && process.env.ZAI_SHOW_THINKING === 'true') {
+            process.stdout.write(`\x1b[2m${chunk.reasoning}\x1b[0m`);
+          }
+          if (chunk.text) {
+            process.stdout.write(chunk.text);
+            chunks.push(chunk.text);
           }
         }
         process.stdout.write('\n');
@@ -202,17 +247,50 @@ export class CodeMode {
         const client = createOpenRouterClient(env);
         if (!client) return this.fallbackCode(prompt, 'OPENROUTER_API_KEY not set');
 
-        const useModel = this.config.model?.startsWith('grok-') ? client.getDefaultModel() : (this.config.model ?? client.getDefaultModel());
-        console.log(`[CODE MODE] Generating with OpenRouter/${useModel}...`);
+        const selection = selectOpenRouterModel({
+          prompt,
+          mode: 'code',
+          requestedModel: this.config.model,
+          env,
+        });
+        console.log(
+          `[CODE MODE] Generating with OpenRouter/${selection.model}` +
+            `${selection.explicit ? '' : ` (${selection.route}: ${selection.reason})`}...`,
+        );
         const result = await client.prompt(prompt, {
-          model: useModel,
+          model: selection.model,
           systemPrompt: CODE_SYSTEM,
+          reasoning: selection.route === 'fast' ? false : undefined,
+          reasoningEffort: selection.reasoning?.effort,
           maxTokens: 8096,
         });
         return result.content || this.fallbackCode(prompt, 'empty response');
       }
 
-      // xAI default
+      if (provider === 'zai') {
+        const client = createZaiClient(this.config.zaiApiKey, this.config.zaiBaseUrl);
+        if (!client) return this.fallbackCode(prompt, 'ZAI_API_KEY not set');
+
+        const useModel = model.startsWith('glm-') ? model : ZAI_DEFAULT_MODEL;
+        console.log(
+          `[CODE MODE] Generating with Z.AI/${useModel}` +
+            ` (thinking: ${this.config.zaiThinking ?? 'enabled'}, effort: ${this.config.zaiReasoningEffort ?? 'max'})...`,
+        );
+        const response = await client.chat({
+          model: useModel,
+          messages: [
+            { role: 'system', content: CODE_SYSTEM },
+            { role: 'user', content: prompt },
+          ],
+          maxTokens: 8096,
+          temperature: 1.0,
+          thinking: this.config.zaiThinking ?? 'enabled',
+          reasoningEffort: this.config.zaiReasoningEffort ?? 'max',
+        });
+        return response.content || this.fallbackCode(prompt, 'empty response');
+      }
+
+      // xAI fallback/provider path.
       const client = createXaiClient(this.config.xaiApiKey);
       if (!client) return this.fallbackCode(prompt, 'XAI_API_KEY not set');
 

@@ -1,25 +1,29 @@
 /**
  * Clawd Code — TRADE MODE
  * Perpetuals trading with Phoenix + Vulcan CLI + Helius RPC
- * Default model for AI analysis: xAI Grok 4.3 (grok-4.3).
+ * Default model for AI analysis: Z.AI GLM-5.2, with GLM-5V for chart vision.
  */
 
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
-import { DEFAULT_MODEL } from '../grok-models.js';
+import { existsSync, readFileSync } from 'fs';
+import { extname } from 'path';
+import { DEFAULT_MODEL, DEFAULT_TRADE_VISION_MODEL } from '../grok-models.js';
+import { createZaiClient, ZAI_TRADE_VISION_MODEL } from '../zai.js';
 
 export class TradeMode {
   constructor(private config: any) {}
 
   async run(args: string[]): Promise<void> {
-    const command = args.filter(a => !a.startsWith('--')).join(' ');
+    const command = this.commandText(args);
 
     console.log('\n[TRADE MODE] Entering perpetuals trading mode...\n');
     console.log(`[TRADE MODE] RPC: ${this.config.rpcUrl}`);
     console.log(`[TRADE MODE] Live Trading: ${this.config.liveTrading}`);
     console.log(`[TRADE MODE] Operator Confirmed: ${this.config.operatorConfirmed}`);
     const analysisModel = this.config.model ?? DEFAULT_MODEL;
-    console.log(`[TRADE MODE] AI analysis model (xAI default): ${analysisModel}`);
+    const visionModel = this.config.zaiTradeVisionModel ?? DEFAULT_TRADE_VISION_MODEL;
+    console.log(`[TRADE MODE] AI analysis model (Z.AI default): ${analysisModel}`);
+    console.log(`[TRADE MODE] Chart vision model: ${visionModel}`);
     // Check safety gates
     if (!this.config.liveTrading) {
       console.log('\n[TRADE MODE] ⚠ PAPER MODE — No real funds will be used');
@@ -28,6 +32,24 @@ export class TradeMode {
 
     // Parse trading command
     const action = command.toLowerCase();
+    const chartInput =
+      this.argValue(args, '--chart') ||
+      this.argValue(args, '--image') ||
+      this.argValue(args, '--screenshot') ||
+      this.firstUrl(command) ||
+      this.firstExistingImagePath(args);
+
+    if (
+      chartInput ||
+      action.includes('chart') ||
+      action.includes('vision') ||
+      action.includes('screenshot') ||
+      action.includes('realtime') ||
+      action.includes('real-time')
+    ) {
+      await this.analyzeChart(command, chartInput);
+      return;
+    }
     
     if (action.includes('funding') || action.includes('rate')) {
       await this.fetchFundingRates();
@@ -47,6 +69,117 @@ export class TradeMode {
       await this.paperTrade(command);
     } else {
       await this.showStatus();
+    }
+  }
+
+  private commandText(args: string[]): string {
+    const valueFlags = new Set(['--chart', '--image', '--screenshot', '--model', '--size']);
+    const parts: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (valueFlags.has(arg)) {
+        i++;
+        continue;
+      }
+      if (arg.startsWith('--')) continue;
+      parts.push(arg);
+    }
+    return parts.join(' ').trim();
+  }
+
+  private argValue(args: string[], flag: string): string | undefined {
+    const prefixed = `${flag}=`;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === flag && args[i + 1]) return args[i + 1];
+      if (args[i].startsWith(prefixed)) return args[i].slice(prefixed.length);
+    }
+    return undefined;
+  }
+
+  private firstUrl(text: string): string | undefined {
+    return text.match(/(?:https?:\/\/|data:image\/)[^\s]+/i)?.[0];
+  }
+
+  private firstExistingImagePath(args: string[]): string | undefined {
+    for (let i = args.length - 1; i >= 0; i--) {
+      const candidate = this.expandPath(args[i]);
+      const ext = extname(candidate).toLowerCase();
+      if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) continue;
+      if (existsSync(candidate)) return candidate;
+    }
+    return undefined;
+  }
+
+  private async analyzeChart(command: string, chartInput?: string): Promise<void> {
+    if (!chartInput) {
+      console.log('\n[TRADE MODE] Chart analysis needs an image URL or local file.');
+      console.log('[TRADE MODE] Usage: clawd-code trade "analyze chart" --chart ./chart.png');
+      return;
+    }
+
+    const client = createZaiClient(this.config.zaiApiKey, this.config.zaiBaseUrl);
+    if (!client) {
+      console.log('\n[TRADE MODE] ZAI_API_KEY not set. Add it to ~/.clawd-code/.env for GLM-5V chart analysis.');
+      return;
+    }
+
+    const imageUrl = this.imageInputToUrl(chartInput);
+    const model = this.config.zaiTradeVisionModel || ZAI_TRADE_VISION_MODEL;
+    const prompt = [
+      'You are Clawd Trade chart vision. Analyze this trading chart or market screenshot for paper-trading decision support only.',
+      'Extract visible symbol, timeframe, trend, structure, support/resistance, liquidity zones, momentum, invalidation, and risk notes.',
+      'If the image lacks enough data, say exactly what is missing.',
+      'Do not claim live market data unless it is visible in the image or prompt.',
+      'Never submit or recommend live execution. End with PAPER MODE preflight status.',
+      command ? `Operator request: ${command}` : '',
+    ].filter(Boolean).join('\n');
+
+    console.log(`\n[TRADE MODE] Running GLM-5V chart analysis via ${model}...`);
+    const response = await client.analyzeImage({
+      model,
+      prompt,
+      imageUrl,
+      maxTokens: 4096,
+      thinking: this.config.zaiThinking ?? 'enabled',
+      reasoningEffort: this.config.zaiReasoningEffort ?? 'high',
+    });
+
+    if (response.reasoningContent && process.env.ZAI_SHOW_THINKING === 'true') {
+      console.log(`\n[TRADE MODE] Reasoning:\n${response.reasoningContent}`);
+    }
+    console.log('\n╔════════════════════════════════════════════════════╗');
+    console.log('║  CHART VISION ANALYSIS — PAPER MODE                ║');
+    console.log('╚════════════════════════════════════════════════════╝');
+    console.log(response.content || '(no analysis returned)');
+  }
+
+  private imageInputToUrl(input: string): string {
+    if (/^(https?:\/\/|data:image\/)/i.test(input)) return input;
+
+    const expanded = this.expandPath(input);
+    if (!existsSync(expanded)) return input;
+
+    const mime = this.mimeFromPath(expanded);
+    const base64 = readFileSync(expanded).toString('base64');
+    return `data:${mime};base64,${base64}`;
+  }
+
+  private expandPath(path: string): string {
+    if (path === '~') return process.env.HOME || path;
+    if (path.startsWith('~/')) return `${process.env.HOME || ''}${path.slice(1)}`;
+    return path;
+  }
+
+  private mimeFromPath(path: string): string {
+    switch (extname(path).toLowerCase()) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.webp':
+        return 'image/webp';
+      case '.png':
+      default:
+        return 'image/png';
     }
   }
 

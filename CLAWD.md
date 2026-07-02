@@ -36,12 +36,27 @@ Set in `~/.clawd-code/.env` or project `.env`:
 
 | Variable | Description |
 | --- | --- |
+| `ZAI_API_KEY` | Z.AI API key for GLM-5.2, GLM-5V, and GLM-Image (default provider) |
+| `ZAI_AGENT_BASE_URL` | Z.AI Agent API base URL for `slides_glm_agent` (`https://api.z.ai/api/v1`) |
+| `ZAI_CHART_MODEL` | Chart/report planning model (`glm-5.2`) |
+| `ZAI_VISION_MODEL` | Default screenshot/chart vision model (`glm-5v-turbo`) |
+| `ZAI_TRADE_VISION_MODEL` | Trade/chart analysis vision model (`glm-5v-turbo`) |
+| `ZAI_CHART_VISION_MODEL` | Chart mode vision model (`glm-5v-turbo`) |
+| `ZAI_IMAGE_MODEL` | Image generation model (`glm-image`) |
+| `ZAI_THINKING` | Z.AI thinking mode (`enabled` by default) |
+| `ZAI_REASONING_EFFORT` | GLM reasoning effort (`max` by default) |
 | `XAI_API_KEY` | xAI API key for Grok models + Voice Agent API |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models (streaming) |
 | `DEEPSEEK_API_KEY` | DeepSeek API key |
 | `OPENROUTER_API_KEY` | OpenRouter API key (free models available) |
+| `OPENROUTER_NEMO_MODEL1` | Balanced/free Nemo route (`nvidia/nemotron-3-ultra-550b-a55b:free`) |
+| `OPENROUTER_NEMO_MODEL2` | Most-intelligent Nemo route (`nvidia/nemotron-3-ultra-550b-a55b`) |
+| `OPENROUTER_NEMO_MODEL3` | Fast/free Nemo route (`nvidia/nemotron-3-super-120b-a12b:free`) |
 | `HELIUS_API_KEY` | Helius API key for DAS/RPC |
 | `SOLANA_RPC_URL` | Solana RPC endpoint |
+| `SOLANA_CLUSTER` | Harness cluster label (`mainnet-beta`, `devnet`, `testnet`, `localnet`) |
+| `SOLANA_COMMITMENT` | Harness RPC commitment (`confirmed` by default) |
+| `SOLANA_HARNESS_READONLY` | Keep mutation RPC blocked unless explicitly false |
 | `VULCAN_MCP_URL` | Vulcan MCP server URL |
 | `LIVE_TRADING` | Enable live trading (default: false) |
 | `CLAWD_STREAM` | Enable streaming output by default (default: false) |
@@ -112,6 +127,7 @@ $CLAWD mint: `8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump`
 ## Agent Behavior
 
 - Use MCP tools for live blockchain data — never hardcode or mock chain state
+- Use `clawd-code chain ...` for read-first Solana RPC inspection and `chain ask` for Z.AI-assisted plans
 - Read reference files before writing code
 - Always include preflight checks for trading operations
 - Default to PAPER mode for all trading — never execute live without confirmation

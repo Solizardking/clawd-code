@@ -35,10 +35,18 @@ npm link
 clawd-code code "Build a Jupiter swap bot in TypeScript"
 clawd-code wallet create
 clawd-code wallet list
+clawd-code chain status
+clawd-code chain balance default
+clawd-code chain ask "what should I inspect before touching this program?"
 clawd-code perps
 clawd-code funding
 clawd-code trade "funding rate on SOL perps"
+clawd-code trade "analyze chart" --chart ./chart.png
+clawd-code chart "analyze this SOL chart" --image ./chart.png
+clawd-code slides "weekly Solana market report" --pages 6
+clawd-code poster "launch poster for a new charting model"
 clawd-code research --agents 16 "Solana perps funding arb"
+clawd-code image "cyberpunk Solana trading desk"
 clawd-code repl
 clawd-code arena status
 ```
@@ -49,12 +57,16 @@ clawd-code arena status
 | --- | --- |
 | `clawd-code code "<prompt>"` | Generate TypeScript/Solana code (streaming with `--stream`) |
 | `clawd-code trade "<intent>"` | Run perps market, paper trade, and position workflows |
+| `clawd-code chain <subcommand>` | Solana blockchain RPC harness with Z.AI planning |
+| `clawd-code chart "<prompt>"` | GLM-5.2 chart/report agent with optional GLM-5V image reads |
+| `clawd-code slides "<prompt>"` | Generate slide decks through Z.ai `slides_glm_agent` |
+| `clawd-code poster "<prompt>"` | Generate posters through Z.ai `slides_glm_agent` |
 | `clawd-code wallet create [name]` | Create a local Solana keypair |
 | `clawd-code wallet list` | List local wallet public keys |
 | `clawd-code perps` | Show perps dashboard |
 | `clawd-code funding` | Show funding-rate dashboard |
 | `clawd-code research "<prompt>"` | Run multi-agent research (streaming with `--stream`) |
-| `clawd-code image "<prompt>"` | Generate images when configured |
+| `clawd-code image "<prompt>"` | Generate images with GLM-Image when configured |
 | `clawd-code voice "<text>"` | Generate voice via local TTS or xAI Voice Agent API |
 | `clawd-code voice --agent` | Real-time Solana voice agent (requires `XAI_API_KEY`, Node 22+) |
 | `clawd-code repl` | Interactive multi-turn conversation REPL |
@@ -71,31 +83,53 @@ Runtime configuration lives in `~/.clawd-code/.env`. Start from
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `CLAWD_PROVIDER` | AI provider: `xai`, `anthropic`, `openrouter`, or `deepseek` | `xai` |
-| `CLAWD_MODEL` | Model used by the selected provider | `grok-4.3` |
+| `CLAWD_PROVIDER` | AI provider: `zai`, `xai`, `anthropic`, `openrouter`, or `deepseek` | `zai` |
+| `CLAWD_MODEL` | Model used by the selected provider | `glm-5.2` |
+| `ZAI_API_KEY` | Z.AI API key for GLM-5.2, GLM-5V, and GLM-Image | empty |
+| `ZAI_BASE_URL` | Z.AI OpenAI-compatible base URL | `https://api.z.ai/api/paas/v4` |
+| `ZAI_AGENT_BASE_URL` | Z.AI Agent API base URL for slide/poster generation | `https://api.z.ai/api/v1` |
+| `ZAI_CHART_MODEL` | Chart/report planning model | `glm-5.2` |
+| `ZAI_VISION_MODEL` | Default screenshot/chart vision model | `glm-5v-turbo` |
+| `ZAI_TRADE_VISION_MODEL` | Trade/chart analysis vision model | `glm-5v-turbo` |
+| `ZAI_CHART_VISION_MODEL` | Chart mode vision model | `glm-5v-turbo` |
+| `ZAI_IMAGE_MODEL` | Image generation model | `glm-image` |
+| `ZAI_THINKING` | Z.AI thinking mode | `enabled` |
+| `ZAI_REASONING_EFFORT` | GLM reasoning effort | `max` |
 | `XAI_API_KEY` | xAI API key for Grok models + Voice Agent API | empty |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models (streaming) | empty |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | empty |
 | `OPENROUTER_API_KEY` | OpenRouter API key (free models supported) | empty |
+| `OPENROUTER_NEMO_MODEL1` | Balanced/free OpenRouter Nemo route | `nvidia/nemotron-3-ultra-550b-a55b:free` |
+| `OPENROUTER_NEMO_MODEL2` | Most-intelligent OpenRouter Nemo route | `nvidia/nemotron-3-ultra-550b-a55b` |
+| `OPENROUTER_NEMO_MODEL3` | Fast/free OpenRouter Nemo route | `nvidia/nemotron-3-super-120b-a12b:free` |
 | `CLAWD_STREAM` | Enable streaming output by default | `false` |
 | `SOLANA_RPC_URL` | Solana RPC endpoint | mainnet-beta |
+| `SOLANA_CLUSTER` | Solana cluster label for the harness | inferred |
+| `SOLANA_COMMITMENT` | RPC commitment for harness reads | `confirmed` |
+| `SOLANA_HARNESS_READONLY` | Blocks mutation RPC when true | `true` |
 | `HELIUS_API_KEY` | Optional Helius key for RPC/DAS workflows | empty |
 | `VULCAN_MCP_URL` | Vulcan MCP server URL | `http://localhost:3001` |
 | `LIVE_TRADING` | Enables live trading path when true | `false` |
 | `OPERATOR_CONFIRMED` | Required operator acknowledgement for live trading | `false` |
 | `PERPS_SIM_ONLY` | Keeps perps execution simulated | `true` |
 
-### Default models per mode (Grok-first)
+### Default Models Per Mode
 
 | Mode | Default model | Notes |
 | --- | --- | --- |
-| `code` / `repl` / `trade` | `grok-4.3` | xAI flagship reasoning, SSE streaming, client tools |
-| `research` | `grok-4.20-multi-agent` | 4 (default) or 16 sub-agents with `web_search` + `x_search` + `code_interpreter` |
-| `image` | `grok-imagine-image-quality` | xAI Imagine text/image-to-image; falls back to DALL-E / Gemini |
+| `code` / `repl` / `trade` | `glm-5.2` | Z.AI flagship coding model, 1M context, thinking mode, SSE streaming |
+| `research` | `glm-5.2` | Deep synthesis with `thinking` and `reasoning_effort` |
+| `chart` | `glm-5.2` + `glm-5v-turbo` | Chart/report planning, screenshot analysis, and slide/poster export |
+| `slides` / `poster` | `slides_glm_agent` | Z.ai Agent API exports decks/posters with optional PDF URLs |
+| `trade` chart vision | `glm-5v-turbo` | `--chart`, `--image`, screenshots, and real-time visual analysis |
+| `image` | `glm-image` | Z.AI text-to-image via `/images/generations`; falls back to DALL-E / Gemini |
 | `voice --agent` | `grok-voice-think-fast-1.0` | xAI realtime voice agent API with Solana tools |
 
 Override per-session with `--model <id>` or `--provider <name>`, or globally
-with `CLAWD_MODEL=` / `CLAWD_PROVIDER=` in `~/.clawd-code/.env`.
+with `CLAWD_MODEL=` / `CLAWD_PROVIDER=` in `~/.clawd-code/.env`. Use
+`CLAWD_PROVIDER=openrouter` with `CLAWD_MODEL=auto` to route each prompt across
+the configured OpenRouter Nemo models. Use `--thinking`, `--no-thinking`, or
+`--reasoning-effort high` to adjust GLM thinking for one run.
 
 ### Optional Grok-style config (`~/.grok/config.toml`)
 
@@ -109,7 +143,7 @@ Supported subset of TOML (see `parseGrokConfigToml()` in `src/env.ts`):
 ```toml
 # ~/.grok/config.toml
 [models]
-default = "grok-4.3"
+default = "glm-5.2"
 
 [model.grok-fast]
 model = "grok-4.3-fast"
@@ -136,9 +170,9 @@ clawd-code /inspect
 clawd-code inspect
 ```
 
-Prints: config sources, active provider/model, API key health, live xAI
-`/v1/models` reachability, per-mode defaults, and the model catalog grouped
-by provider.
+Prints: config sources, active provider/model, API key health, optional xAI
+`/v1/models` reachability, per-mode defaults, and the model catalog grouped by
+provider.
 
 Never commit `.env`, wallet files, API keys, private keys, or generated outputs.
 The repository ignore rules exclude `.env`, `.clawd/`, `node_modules/`,
@@ -156,6 +190,31 @@ Wallets are stored as Solana CLI-compatible keypair JSON files under
 `~/.clawd-code/wallets` with `0600` permissions. Treat those files like private
 keys.
 
+## Solana Blockchain Harness
+
+```bash
+clawd-code chain status
+clawd-code chain balance default
+clawd-code chain account <ADDRESS>
+clawd-code chain tx <SIGNATURE>
+clawd-code chain signatures <ADDRESS> --limit 20
+clawd-code chain token <MINT>
+clawd-code chain token-accounts <OWNER> --mint <MINT>
+clawd-code chain fees
+clawd-code chain blockhash
+clawd-code chain simulate <BASE64_TRANSACTION>
+clawd-code chain ask "inspect this program safely before upgrade"
+```
+
+The harness uses `SOLANA_RPC_URL` or `HELIUS_RPC_URL`, with `HELIUS_API_KEY`
+as the mainnet fallback. It is read-only by default. `send-raw` is blocked
+unless `SOLANA_HARNESS_READONLY=false`, `LIVE_TRADING=true`, and
+`OPERATOR_CONFIRMED=true` are all set. `airdrop` only works on devnet, testnet,
+or localnet.
+
+`chain ask` uses `ZAI_API_KEY` with GLM-5.2 to turn natural-language Solana
+intents into safe harness commands and explanations using a live RPC snapshot.
+
 ## Perps Safety
 
 Perps workflows default to paper mode. Live trading requires all of these:
@@ -172,21 +231,28 @@ configuration before enabling live execution.
 
 ## AI Providers
 
-Clawd Code supports four AI providers with unified streaming:
+Clawd Code supports five AI providers with unified streaming:
 
 | Provider | Alias | Models | Streaming |
 | --- | --- | --- | --- |
-| `xai` | *(default)* | `grok-4.3`, `grok-4.3-fast`, `grok-4.20-multi-agent`, `grok-voice-think-fast-1.0`, `grok-imagine-image-quality`, … | native SSE |
+| `zai` | *(default)* | `glm-5.2`, `glm-5-turbo`, `glm-5v-turbo`, `glm-image`, `cogview-4` | native SSE / image API |
+| `xai` | `grok` | `grok-4.3`, `grok-4.3-fast`, `grok-4.20-multi-agent`, `grok-voice-think-fast-1.0`, `grok-imagine-image-quality`, … | native SSE |
 | `anthropic` | `claude`, `ant` | `claude-sonnet-4-6`, `claude-opus-4-8`, `claude-haiku-4-5-20251001` | native SSE |
-| `openrouter` | `or` | `nex-agi/nex-n2-pro:free` + any OR model | native SSE |
+| `openrouter` | `or` | Nemo auto routing (`OPENROUTER_NEMO_MODEL1/2/3`) + any OR model | native SSE |
 | `deepseek` | `ds` | `deepseek-v4-pro`, `deepseek-v4-flash` | blocking |
 
 ```bash
 # Stream code generation with Claude
 clawd-code code --provider anthropic --stream "Build an Anchor staking program"
 
-# Use free OpenRouter model
-clawd-code code --provider openrouter "Review this TypeScript"
+# Use the default GLM-5.2 thinking path
+clawd-code code --stream "Review this Solana program"
+
+# Use prompt-based OpenRouter Nemo routing
+clawd-code code --provider openrouter --model auto "Review this TypeScript"
+
+# Analyze a chart screenshot with GLM-5V
+clawd-code trade "analyze SOL chart for paper setup" --chart ./chart.png
 
 # Switch provider for session
 clawd-code /provider anthropic
@@ -194,6 +260,12 @@ clawd-code /provider anthropic
 # List all models
 clawd-code /models
 ```
+
+OpenRouter auto routing is deterministic and local. Short/simple prompts route
+to `OPENROUTER_NEMO_MODEL3`, complex coding/research prompts route to
+`OPENROUTER_NEMO_MODEL2`, and balanced prompts route to
+`OPENROUTER_NEMO_MODEL1`. Passing an explicit OpenRouter model ID bypasses the
+router.
 
 ## Interactive REPL
 
@@ -206,8 +278,10 @@ An interactive multi-turn conversation session. Dot commands:
 | Command | Action |
 | --- | --- |
 | `.mode code\|research\|trade\|general` | Switch conversation mode |
-| `.provider xai\|anthropic\|openrouter\|deepseek` | Switch AI provider |
+| `.provider zai\|xai\|anthropic\|openrouter\|deepseek` | Switch AI provider |
 | `.model <id>` | Switch model mid-session |
+| `.thinking on\|off` | Toggle Z.AI thinking mode |
+| `.effort max\|xhigh\|high\|medium\|low\|minimal\|none` | Set Z.AI reasoning effort |
 | `.clear` | Clear message history |
 | `.history` | Print conversation history |
 | `.help` | Show all dot commands |

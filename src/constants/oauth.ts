@@ -1,7 +1,7 @@
 import { isEnvTruthy } from 'src/utils/envUtils.js'
 
 // OAuth configuration for Clawd Code provider integrations
-// Supports xAI Grok (default), Anthropic Claude, DeepSeek, and OpenRouter
+// Supports Z.AI GLM (default), xAI Grok, Anthropic Claude, DeepSeek, and OpenRouter
 type OauthConfigType = 'prod' | 'staging' | 'local'
 
 function getOauthConfigType(): OauthConfigType {
