@@ -44,6 +44,7 @@ import {
 } from './zai.js';
 import { createXaiClient } from './xai.js';
 import { EnvironmentVerifier } from './verify.js';
+import { runTelegramRelay } from './telegram.js';
 
 type Mode = 'CODE' | 'TRADE' | 'RESEARCH' | 'IMAGE' | 'VOICE' | 'REPL';
 
@@ -421,6 +422,12 @@ async function main(): Promise<void> {
     } else {
       printModelsTable();
     }
+    process.exit(0);
+  }
+
+  // /telegram command — long-poll relay: chat/CLI only, no computer-use control
+  if (args[0] === '/telegram' || args[0] === 'telegram') {
+    await runTelegramRelay();
     process.exit(0);
   }
 
