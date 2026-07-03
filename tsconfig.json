@@ -28,6 +28,7 @@
     "src/grok-models.ts",
     "src/spinners.ts",
     "src/verify.ts",
+    "src/server.ts",
     "src/voice-agent.ts",
     "src/solana-harness.ts",
     "src/x402.ts",

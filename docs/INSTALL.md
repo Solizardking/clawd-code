@@ -44,9 +44,44 @@ Run from the package root:
 When `install.sh` is executed from this checkout, it detects the local package
 root and installs from source in one shot.
 
+## Web Box
+
+The web UI talks to the Clawd Code API on port `3001` and serves the Next.js
+operator interface on port `3000`.
+
+Local dev, from `/Users/8bit/clawd-code`:
+
+```bash
+npm run box:dev
+```
+
+This starts:
+
+- `npm run api:dev` at `http://localhost:3001`
+- `npm --prefix web run dev` at `http://localhost:3000`
+
+Useful checks:
+
+```bash
+curl -fsS http://localhost:3001/health
+curl -fsS http://localhost:3001/.well-known/agent-auth.json
+```
+
+Container box:
+
+```bash
+docker compose up --build
+```
+
+The compose setup passes root `.env` into the API service. Keep provider keys
+and trading credentials in `.env`; it is ignored by git. In containers, the web
+service uses `CLAWD_API_URL=http://clawd-api:3001` for server-side proxying and
+`NEXT_PUBLIC_API_URL=http://localhost:3001` for browser health checks.
+
 ## Layout Notes
 
 - `src/` contains the CLI and provider adapters.
+- `src/server.ts` contains the HTTP/SSE API used by the web UI.
 - `clawd-plugin/` contains the plugin manifest, MCP config, skills, and
   reference docs.
 - `spinners/` contains bundled themed spinner verb packs and is included in

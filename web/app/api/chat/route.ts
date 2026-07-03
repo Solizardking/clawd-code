@@ -12,7 +12,10 @@ const PROVIDER_ENV_KEYS: Record<string, string> = {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+    const apiUrl =
+      process.env.CLAWD_API_URL ??
+      process.env.NEXT_PUBLIC_API_URL ??
+      "http://localhost:3001";
 
     const provider: string = body.provider ?? "zai";
     const envKey = PROVIDER_ENV_KEYS[provider] ?? PROVIDER_ENV_KEYS.zai;
@@ -30,9 +33,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: "Backend request failed" },
-        { status: response.status }
+      const contentType = response.headers.get("Content-Type") ?? "application/json";
+      const text = await response.text();
+      return new NextResponse(
+        text || JSON.stringify({ error: "Backend request failed" }),
+        {
+          status: response.status,
+          headers: { "Content-Type": contentType },
+        }
       );
     }
 

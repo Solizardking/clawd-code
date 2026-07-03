@@ -1,0 +1,14 @@
+.git
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules
+dist
+web/.next
+web/node_modules
+*.log
+test-ledger
+target
+.anchor
+.vercel

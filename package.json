@@ -10,6 +10,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
+    "api:dev": "tsx src/server.ts",
+    "api": "node dist/server.js",
+    "web:dev": "npm --prefix web run dev",
+    "box:dev": "node scripts/dev-box.mjs",
+    "box:build": "npm run build && npm --prefix web run build",
     "start": "node dist/cli.js",
     "test": "node --import tsx --test src/**/*.test.ts"
   },
