@@ -9,6 +9,13 @@ import { join } from 'node:path';
 import { CLAWD_MINT, arena } from './arena.js';
 import { loadClawdEnv } from './env.js';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './grok-models.js';
+import {
+  getInstalledSpinnerVerbs,
+  installSpinnerPack,
+  listSpinnerPacks,
+  loadSpinnerPack,
+  removeSpinnerPack,
+} from './spinners.js';
 import { getZaiEnvConfig } from './zai.js';
 import { createWallet, listWallets } from './wallet.js';
 
@@ -346,6 +353,105 @@ export async function cmdFunding(args: string[]): Promise<void> {
   console.log('╚════════════════════════════════════════════════════════╝\n');
 }
 
+function pad(value: string, width: number): string {
+  return value.length > width ? `${value.slice(0, Math.max(0, width - 3))}...` : value.padEnd(width);
+}
+
+export async function cmdSpinner(args: string[]): Promise<void> {
+  const sub = (args[0] ?? 'list').toLowerCase();
+
+  if (sub === 'list' || sub === 'ls' || sub === 'packs') {
+    const packs = listSpinnerPacks();
+    console.log('\nCLAWD SPINNER PACKS');
+    console.log('Pack                 Verbs  Description                 Examples');
+    console.log('-------------------  -----  --------------------------  ------------------------------');
+    for (const pack of packs) {
+      console.log(
+        `${pad(pack.name, 19)}  ${String(pack.verbCount).padStart(5)}  ${pad(pack.description || '-', 26)}  ${pack.examples.join(' | ')}`,
+      );
+    }
+    console.log('\nInstall: clawd-code spinner install <pack>');
+    console.log('Remove:  clawd-code spinner remove');
+    return;
+  }
+
+  if (sub === 'install' || sub === 'use' || sub === 'set') {
+    const packName = args[1];
+    if (!packName) {
+      console.error('[SPINNER] Missing pack name. Run: clawd-code spinner list');
+      return;
+    }
+    try {
+      const result = installSpinnerPack(packName);
+      console.log(`[SPINNER] Pack "${result.packName}" installed (${result.verbCount} verbs).`);
+      console.log(`[SPINNER] Updated: ${result.settingsPath}`);
+      console.log('[SPINNER] No restart required for clients that reread settings dynamically.');
+    } catch (error) {
+      console.error(`[SPINNER] ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+
+  if (sub === 'remove' || sub === 'reset' || sub === 'clear' || sub === 'default') {
+    try {
+      const result = removeSpinnerPack();
+      console.log(result.removed ? '[SPINNER] Custom spinner pack removed.' : '[SPINNER] No custom spinner pack was set.');
+      console.log(`[SPINNER] Updated: ${result.settingsPath}`);
+    } catch (error) {
+      console.error(`[SPINNER] ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+
+  if (sub === 'show' || sub === 'preview') {
+    const packName = args[1];
+    if (!packName) {
+      console.error('[SPINNER] Missing pack name. Run: clawd-code spinner show developer');
+      return;
+    }
+    try {
+      const pack = loadSpinnerPack(packName);
+      console.log(`\n${pack.name} - ${pack.description || 'spinner pack'}`);
+      console.log(`${pack.spinnerVerbs.verbs.length} verbs`);
+      for (const verb of pack.spinnerVerbs.verbs.slice(0, 12)) {
+        console.log(`- ${verb}`);
+      }
+      if (pack.spinnerVerbs.verbs.length > 12) {
+        console.log(`...${pack.spinnerVerbs.verbs.length - 12} more`);
+      }
+    } catch (error) {
+      console.error(`[SPINNER] ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+
+  if (sub === 'status' || sub === 'current') {
+    try {
+      const result = getInstalledSpinnerVerbs();
+      console.log(`\nSettings: ${result.settingsPath}`);
+      if (!result.spinnerVerbs) {
+        console.log('Spinner pack: default');
+        return;
+      }
+      console.log(`Spinner mode: ${result.spinnerVerbs.mode}`);
+      console.log(`Custom verbs: ${result.spinnerVerbs.verbs.length}`);
+      console.log(`Examples: ${result.spinnerVerbs.verbs.slice(0, 3).join(' | ')}`);
+    } catch (error) {
+      console.error(`[SPINNER] ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+
+  try {
+    const result = installSpinnerPack(sub);
+    console.log(`[SPINNER] Pack "${result.packName}" installed (${result.verbCount} verbs).`);
+    console.log(`[SPINNER] Updated: ${result.settingsPath}`);
+  } catch {
+    console.log('\nUsage: clawd-code spinner <list|install|show|status|remove> [pack]');
+    console.log('Example: clawd-code spinner install developer');
+  }
+}
+
 export async function cmdHelp(args: string[]): Promise<void> {
   console.log('\n╔════════════════════════════════════════════════════════╗');
   console.log('║  CLAWD CODE — Help                                     ║');
@@ -369,6 +475,7 @@ export async function cmdHelp(args: string[]): Promise<void> {
   console.log('║  strategies      Vulcan strategy runners               ║');
   console.log('║  arena [sub]     Agent Arena: mint|register|fetch|review║');
   console.log('║  agents          Clawd agent registry                  ║');
+  console.log('║  spinner         List/install themed spinner packs     ║');
   console.log('║  models          Model registry (Z.AI+Grok+Claude)     ║');
   console.log('║  provider        Switch zai/xai/anthropic/openrouter/ds║');
   console.log('║  goal [text]     Natural language intent router        ║');

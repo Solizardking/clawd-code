@@ -26,6 +26,7 @@
     "src/deepseek.ts",
     "src/openrouter.ts",
     "src/grok-models.ts",
+    "src/spinners.ts",
     "src/verify.ts",
     "src/voice-agent.ts",
     "src/solana-harness.ts",

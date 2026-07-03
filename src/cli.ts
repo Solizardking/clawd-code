@@ -211,6 +211,7 @@ GLOBAL COMMANDS:
   /models <id>            Switch to a specific model (alias or canonical id)
   /provider               Show current AI provider + API key status
   /provider <name>        Switch provider: zai | xai | anthropic | openrouter | deepseek
+  /spinner                List/install themed spinner packs
   /inspect                Print discovered config, models, and provider health
 
 COMMANDS:
@@ -226,6 +227,7 @@ COMMANDS:
   clawd-code image "cyberpunk Solana trading desk"
   clawd-code voice "Hello from Clawd Code"
   clawd-code repl
+  clawd-code spinner install developer
 
 OPTIONS:
   --mode <mode>          Set mode (code|chain|chart|trade|research|image|voice|repl)
@@ -248,6 +250,7 @@ EXAMPLES:
   clawd-code trade "analyze chart" --chart ./chart.png
   clawd-code chart "portfolio drawdown dashboard" --slides --pages 5
   clawd-code image "cyberpunk Solana trading desk" --model glm-image
+  clawd-code spinner list
   clawd-code repl
   clawd-code inspect
 
@@ -537,6 +540,10 @@ async function main(): Promise<void> {
     'arena':       C.cmdArena,
     '/agents':     C.cmdAgents,
     'agents':      C.cmdAgents,
+    '/spinner':    C.cmdSpinner,
+    'spinner':     C.cmdSpinner,
+    '/spinners':   C.cmdSpinner,
+    'spinners':    C.cmdSpinner,
     '/goal':       C.cmdGoal,
     'goal':        C.cmdGoal,
     '/help':       C.cmdHelp,

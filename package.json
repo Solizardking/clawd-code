@@ -15,6 +15,7 @@
   },
   "files": [
     "dist",
+    "spinners",
     "clawd-plugin",
     "docs",
     "install.sh",

@@ -38,6 +38,8 @@ root and installs from source in one shot.
 - `src/` contains the CLI and provider adapters.
 - `clawd-plugin/` contains the plugin manifest, MCP config, skills, and
   reference docs.
+- `spinners/` contains bundled themed spinner verb packs and is included in
+  the npm package for offline `clawd-code spinner install <pack>` usage.
 - `web/` contains the web client package.
 - Clawd Code is always NemoClaw-enabled: OpenRouter Nemo/Fable routing is built
   into `src/openrouter.ts`.

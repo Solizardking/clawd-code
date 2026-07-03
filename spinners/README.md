@@ -17,7 +17,7 @@ Once installed, ask your Clawd agent:
 Install a spinner pack
 ```
 
-You'll be presented with 45+ themed packs to choose from, including:
+You'll be presented with 44 themed packs to choose from, including:
 
 - **Developer** — Programming & dev culture
 - **Pirate** — Pirate speak

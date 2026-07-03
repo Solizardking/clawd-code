@@ -60,7 +60,9 @@ not build the entire directory tree.
 | Path | Status in this checkout | Purpose |
 | --- | --- | --- |
 | `clawd-plugin/` | present | Plugin manifest, MCP config, bundled skills/reference docs — see [Clawd Code Plugin](#clawd-code-plugin) |
+| `clawd-agents/clawd-grok/` | present | Vendored Grok-powered Solana perps CLI package with its own `src/`, `dist/`, agent skills, Cursor rules, CI templates, and Bun/TypeScript config |
 | `docs/` | present | Install/smoke-test notes (`docs/INSTALL.md`) |
+| `spinners/` | present | Bundled themed spinner verb packs installable through `clawd-code spinner` |
 | `quantitative-signal-discovery-agent/` | present | Independent Python research/analysis project (own `.git`, not wired into the CLI build) |
 | `son_of_anton_program/` | present | Independent Anchor/Solana program project (own `.git`, not wired into the CLI build) |
 | `src/` | present | CLI runtime, provider adapters, modes, tests — see [CLI source layout](#cli-source-layout) |
@@ -205,6 +207,8 @@ clawd-code research --agents 16 "Solana perps funding arb"
 clawd-code image "cyberpunk Solana trading desk"
 clawd-code repl
 clawd-code arena status
+clawd-code spinner list
+clawd-code spinner install developer
 TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
 ```
 
@@ -228,11 +232,29 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
 | `clawd-code voice --agent` | Real-time Solana voice agent (requires `XAI_API_KEY`, Node 22+) |
 | `clawd-code repl` | Interactive multi-turn conversation REPL |
 | `clawd-code arena <subcommand>` | Agent Arena — on-chain identity, discovery, reputation |
+| `clawd-code spinner <subcommand>` | List, preview, install, or remove bundled spinner packs |
 | `clawd-code verify` | Run environment checks |
 | `clawd-code telegram` | Start the Telegram relay — chat/CLI only, Z.AI by default, no computer-use |
 
 Slash aliases such as `clawd-code /wallet create` and `clawd-code /perps` still
 work for compatibility.
+
+## Spinner Packs
+
+The npm package ships the local [`spinners/`](./spinners) catalog. The CLI
+installs packs without a network fetch by copying only the selected pack's
+`spinnerVerbs` field into `~/.clawd/settings.json`, or into
+`~/.claude/settings.json` when that file already exists and `~/.clawd` does
+not. Set `CLAWD_SPINNER_SETTINGS_PATH=/path/to/settings.json` to target a
+specific settings file.
+
+```bash
+clawd-code spinner list
+clawd-code spinner show vibecoder
+clawd-code spinner install developer
+clawd-code spinner status
+clawd-code spinner remove
+```
 
 ## Configuration
 
