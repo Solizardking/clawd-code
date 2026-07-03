@@ -1,4 +1,3 @@
-import { type ToolSet } from "ai";
 import type { BashTool } from "../tools/bash";
 import type { ScheduleManager } from "../tools/schedule";
 import type { AgentMode, TaskRequest, ToolResult } from "../types/index";
@@ -13,6 +12,7 @@ interface CreateToolsOptions {
     subagents?: CustomSubagentConfig[];
     sendTelegramFile?: (filePath: string) => Promise<ToolResult>;
     sessionId?: string;
+    toolsets?: string[];
 }
 export declare function createTools(bash: BashTool, provider: XaiProvider, mode?: AgentMode, options?: CreateToolsOptions): ToolSet;
 export {};

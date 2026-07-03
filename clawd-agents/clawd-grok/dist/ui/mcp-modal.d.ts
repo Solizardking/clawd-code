@@ -12,7 +12,7 @@ export declare function McpBrowserModal({ t, width, height, selectedIndex, searc
     selectedIndex: number;
     searchQuery: string;
     rows: McpBrowserRow[];
-}): import("react").ReactNode;
+}): any;
 export declare function McpEditorModal({ t, width, height, draft, focusedField, syncKey, error, title, labelRef, urlRef, headersRef, commandRef, argsRef, cwdRef, envRef, onSubmit, }: {
     t: Theme;
     width: number;
@@ -30,4 +30,4 @@ export declare function McpEditorModal({ t, width, height, draft, focusedField, 
     cwdRef: RefObject<TextareaRenderable | null>;
     envRef: RefObject<TextareaRenderable | null>;
     onSubmit: () => void;
-}): import("react").ReactNode;
+}): any;

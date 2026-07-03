@@ -33,6 +33,10 @@ clawd --plugin-dir ./clawd-code/clawd-plugin
 
 **Phoenix Rise MCP Server** — auto-starts for real-time perpetuals orderbook and funding rate data.
 
+**Imperial Router support** — Clawd Code can read Imperial funding/portfolio
+state and route live perps through Imperial when `IMPERIAL_LIVE=true` and the
+global live gates are armed. Phoenix is the default underwriter (`2`).
+
 **DFlow MCP Server** — auto-starts for trading API details, response schemas, and code examples.
 
 ### Skills

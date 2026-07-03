@@ -18,6 +18,10 @@ export interface VerifyResult {
   remedy?: string;
 }
 
+function displayUrl(url: string): string {
+  return url.replace(/([?&](?:api-key|apikey|key|token)=)[^&]+/gi, '$1***');
+}
+
 export class EnvironmentVerifier {
   private results: VerifyResult[] = [];
 
@@ -118,7 +122,7 @@ export class EnvironmentVerifier {
     this.results.push({
       name: 'Helius RPC endpoint',
       ok: !!rpc && rpc.includes('helius'),
-      message: rpc ? `Using ${rpc.slice(0, 60)}...` : 'No RPC configured',
+      message: rpc ? `Using ${displayUrl(rpc).slice(0, 60)}...` : 'No RPC configured',
       remedy: !rpc ? 'Set HELIUS_RPC_URL in ~/.clawd-code/.env (get key from helius.dev)' : undefined,
     });
   }

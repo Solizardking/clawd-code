@@ -2,8 +2,8 @@ import { APICallError } from "@ai-sdk/provider";
 import { convertToBase64 } from "@ai-sdk/provider-utils";
 import { stepCountIs, streamText } from "ai";
 import { addBatchRequests, createBatch, getBatchChatCompletion, pollBatchRequestResult, } from "../grok/batch";
-import { createProvider, generateRecap as genRecap, generateTitle as genTitle, resolveModelRuntime, } from "../grok/client";
-import { DEFAULT_MODEL, getModelInfo, normalizeModelId } from "../grok/models";
+import { createProvider, generateRecap as genRecap, generateTitle as genTitle, resolveModelRuntime, resolveResponsesRuntime, } from "../grok/client";
+import { DEFAULT_MODEL, getModelInfo, normalizeModelId, normalizeProviderId } from "../grok/models";
 import { toolSetToBatchTools } from "../grok/tool-schemas";
 import { createTools } from "../grok/tools";
 import { executeEventHooks } from "../hooks/index";
@@ -13,7 +13,7 @@ import { appendCompaction, appendMessages, appendSystemMessage, buildChatEntries
 import { BashTool } from "../tools/bash";
 import { ScheduleManager } from "../tools/schedule";
 import { loadCustomInstructions } from "../utils/instructions";
-import { getCurrentModel, getModeSpecificModel, loadMcpServers, loadRecapsEnabled, loadValidSubAgents, } from "../utils/settings";
+import { getApiKey, getBaseURL, getModeSpecificModel, loadMcpServers, loadRecapsEnabled, loadValidSubAgents, resolveProviderModelSelection, } from "../utils/settings";
 import { runSideQuestion } from "../utils/side-question";
 import { discoverSkills, formatSkillsForPrompt } from "../utils/skills";
 import { buildVerifyDetectPrompt, normalizeVerifyRecipe, prepareVerifySandbox } from "../verify/entrypoint";
@@ -25,6 +25,9 @@ import { buildVisionUserMessages } from "./vision-input";
 const MAX_TOOL_ROUNDS = 400;
 const VISION_MODEL = "gpt-4o";
 const COMPUTER_MODEL = "gpt-4o";
+function normalizeToolsetList(toolsets) {
+    return [...new Set((toolsets ?? []).map((toolset) => toolset.trim().toLowerCase()).filter(Boolean))];
+}
 const ENVIRONMENT = `ENVIRONMENT:
 You are running inside a terminal (CLI). Your text output is rendered in a plain terminal — not a browser, not a rich text editor.
 - Use plain text only. No markdown tables, no HTML, no images, no colored text.
@@ -364,6 +367,7 @@ function applyModelConstraints(system, modelId) {
 }
 export class Agent {
     provider = null;
+    providerId;
     apiKey = null;
     baseURL = null;
     bash;
@@ -385,23 +389,27 @@ export class Agent {
     batchApi = false;
     sessionStartHookFired = false;
     recapsEnabled = true;
+    toolsets = [];
     constructor(apiKey, baseURL, model, maxToolRounds, options = {}) {
-        this.baseURL = baseURL || null;
+        const initialMode = "agent";
+        const selection = resolveProviderModelSelection({ provider: options.provider, model, mode: initialMode });
+        this.providerId = selection.provider;
+        this.modelId = selection.model;
+        this.baseURL = baseURL || getBaseURL(this.providerId) || null;
+        this.toolsets = normalizeToolsetList(options.toolsets);
         if (apiKey) {
-            this.setApiKey(apiKey, baseURL);
+            this.setApiKey(apiKey, this.baseURL ?? undefined, this.providerId);
         }
         this.bash = new BashTool(process.cwd(), {
             sandboxMode: options.sandboxMode ?? "off",
             sandboxSettings: options.sandboxSettings,
         });
         this.delegations = new DelegationManager(() => this.bash.getCwd());
-        const initialMode = "agent";
-        this.modelId = normalizeModelId(model || getCurrentModel(initialMode));
         this.schedules = new ScheduleManager(() => this.bash.getCwd(), () => this.modelId);
         this.maxToolRounds = maxToolRounds || MAX_TOOL_ROUNDS;
         const envMax = Number(process.env.AI_MAX_TOKENS);
         this.maxTokens = Number.isFinite(envMax) && envMax > 0 ? envMax : 16_384;
-        this.batchApi = options.batchApi ?? false;
+        this.batchApi = this.providerId === "xai" ? (options.batchApi ?? false) : false;
         this.recapsEnabled = loadRecapsEnabled();
         if (options.persistSession !== false) {
             this.sessionStore = new SessionStore(this.bash.getCwd());
@@ -418,7 +426,11 @@ export class Agent {
         return this.modelId;
     }
     setModel(model) {
-        this.modelId = normalizeModelId(model);
+        const selection = resolveProviderModelSelection({ model, mode: this.mode });
+        this.modelId = selection.model;
+        if (selection.provider !== this.providerId) {
+            this.setProvider(selection.provider);
+        }
         if (this.sessionStore && this.session) {
             this.sessionStore.setModel(this.session.id, this.modelId);
             this.session = this.sessionStore.getRequiredSession(this.session.id);
@@ -426,6 +438,12 @@ export class Agent {
     }
     getMode() {
         return this.mode;
+    }
+    getProvider() {
+        return this.providerId;
+    }
+    getToolsets() {
+        return [...this.toolsets];
     }
     getSandboxMode() {
         return this.bash.getSandboxMode();
@@ -444,7 +462,11 @@ export class Agent {
             this.mode = mode;
             const modeModel = getModeSpecificModel(mode);
             if (modeModel) {
-                this.modelId = normalizeModelId(modeModel);
+                const selection = resolveProviderModelSelection({ provider: this.providerId, model: modeModel, mode });
+                this.modelId = selection.model;
+                if (selection.provider !== this.providerId) {
+                    this.setProvider(selection.provider);
+                }
             }
             if (this.sessionStore && this.session) {
                 this.sessionStore.setMode(this.session.id, mode);
@@ -462,10 +484,29 @@ export class Agent {
     hasApiKey() {
         return !!this.apiKey;
     }
-    setApiKey(apiKey, baseURL = this.baseURL ?? undefined) {
+    setApiKey(apiKey, baseURL = this.baseURL ?? undefined, providerId = this.providerId) {
         this.apiKey = apiKey;
+        this.providerId = providerId;
         this.baseURL = baseURL || null;
-        this.provider = createProvider(apiKey, baseURL);
+        this.provider = createProvider(apiKey, baseURL, providerId);
+        if (providerId !== "xai") {
+            this.batchApi = false;
+        }
+    }
+    setProvider(provider, apiKey, baseURL) {
+        const normalized = normalizeProviderId(provider);
+        if (!normalized) {
+            throw new Error(`Unknown provider "${provider}".`);
+        }
+        this.providerId = normalized;
+        const resolvedBaseURL = baseURL ?? getBaseURL(normalized);
+        const resolvedApiKey = apiKey ?? getApiKey(normalized);
+        this.baseURL = resolvedBaseURL || null;
+        this.apiKey = null;
+        this.provider = null;
+        if (resolvedApiKey) {
+            this.setApiKey(resolvedApiKey, resolvedBaseURL, normalized);
+        }
     }
     getCwd() {
         return this.bash.getCwd();
@@ -709,6 +750,9 @@ export class Agent {
         if (!this.apiKey) {
             throw new Error("API key required. Add an API key to continue.");
         }
+        if (this.providerId !== "xai") {
+            throw new Error("Batch mode is available only for the native xAI provider.");
+        }
         return {
             apiKey: this.apiKey,
             baseURL: this.baseURL ?? undefined,
@@ -923,7 +967,7 @@ export class Agent {
                 ? (verifyPreparedSettings ?? { ...this.bash.getSandboxSettings(), ...verifySandboxOverrides })
                 : this.bash.getSandboxSettings(),
         });
-        const childBaseTools = createTools(childBash, provider, childMode);
+        const childBaseTools = createTools(childBash, provider, childMode, { toolsets: this.toolsets });
         const initialDetail = isExplore
             ? "Scanning the codebase"
             : isVerifyDetect
@@ -948,9 +992,7 @@ export class Agent {
                     : custom
                         ? custom.model
                         : this.modelId);
-        const childRuntime = isVision
-            ? { ...resolveModelRuntime(provider, childModelId), model: provider.responses(childModelId) }
-            : resolveModelRuntime(provider, childModelId);
+        const childRuntime = isVision ? resolveResponsesRuntime(provider, childModelId) : resolveModelRuntime(provider, childModelId);
         if (isComputer && childRuntime.modelInfo?.supportsClientTools === false) {
             return {
                 success: false,
@@ -1242,6 +1284,7 @@ export class Agent {
                     subagents,
                     sendTelegramFile: this.sendTelegramFile ?? undefined,
                     sessionId: this.session?.id ?? undefined,
+                    toolsets: this.toolsets,
                 });
                 let tools = runtime.modelInfo?.supportsClientTools === false ? {} : baseTools;
                 if (this.mode === "agent" && runtime.modelInfo?.supportsClientTools !== false) {
@@ -1503,6 +1546,7 @@ export class Agent {
                         subagents,
                         sendTelegramFile: this.sendTelegramFile ?? undefined,
                         sessionId: this.session?.id ?? undefined,
+                        toolsets: this.toolsets,
                     });
                     let tools = runtime.modelInfo?.supportsClientTools === false ? {} : baseTools;
                     if (this.mode === "agent" && runtime.modelInfo?.supportsClientTools !== false) {

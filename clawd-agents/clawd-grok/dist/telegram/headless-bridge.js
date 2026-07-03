@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import process from "node:process";
 import { Agent } from "../agent/agent";
-import { getApiKey, getBaseURL, getCurrentModel, getCurrentSandboxMode, getCurrentSandboxSettings, getTelegramBotToken, loadUserSettings, saveApprovedTelegramUserId, saveUserSettings, } from "../utils/settings";
+import { getApiKey, getBaseURL, getCurrentModel, getCurrentProvider, getCurrentSandboxMode, getCurrentSandboxSettings, getCurrentToolsets, getTelegramBotToken, loadUserSettings, saveApprovedTelegramUserId, saveUserSettings, } from "../utils/settings";
 import { createTelegramBridge } from "./bridge";
 import { resolveTelegramHeadlessBridgePaths, } from "./headless-bridge-paths";
 import { approvePairingCode } from "./pairing";
@@ -32,7 +32,13 @@ function buildTelegramAgentFactory(startupConfig) {
         }
         const settings = loadUserSettings();
         const sessionId = settings.telegram?.sessionsByUserId?.[String(userId)];
-        const agent = new Agent(startupConfig.apiKey, startupConfig.baseURL, startupConfig.model, startupConfig.maxToolRounds, { session: sessionId, sandboxMode: startupConfig.sandboxMode, sandboxSettings: startupConfig.sandboxSettings });
+        const agent = new Agent(startupConfig.apiKey, startupConfig.baseURL, startupConfig.model, startupConfig.maxToolRounds, {
+            session: sessionId,
+            sandboxMode: startupConfig.sandboxMode,
+            sandboxSettings: startupConfig.sandboxSettings,
+            provider: startupConfig.provider,
+            toolsets: startupConfig.toolsets,
+        });
         const nextSessionId = agent.getSessionId();
         if (!sessionId && nextSessionId) {
             saveUserSettings({
@@ -62,17 +68,21 @@ export async function runTelegramHeadlessBridge(options = {}) {
     if (!token) {
         throw new Error("Missing Telegram bot token in user settings or TELEGRAM_BOT_TOKEN.");
     }
-    const apiKey = options.apiKey ?? getApiKey();
+    const model = options.model ?? getCurrentModel();
+    const provider = options.provider ?? getCurrentProvider(model);
+    const apiKey = options.apiKey ?? getApiKey(provider);
     if (!apiKey) {
-        throw new Error("Missing Grok API key.");
+        throw new Error(`Missing API key for provider ${provider}.`);
     }
     const startupConfig = {
         apiKey,
-        baseURL: options.baseURL ?? getBaseURL(),
-        model: options.model ?? getCurrentModel(),
+        baseURL: options.baseURL ?? getBaseURL(provider),
+        provider,
+        model,
         sandboxMode: options.sandboxMode ?? getCurrentSandboxMode(),
         sandboxSettings: options.sandboxSettings ?? getCurrentSandboxSettings(),
         maxToolRounds: options.maxToolRounds ?? 400,
+        toolsets: options.toolsets ?? getCurrentToolsets(),
     };
     const pathOptions = {
         logFile: options.logFile,

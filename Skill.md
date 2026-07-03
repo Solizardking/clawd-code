@@ -233,6 +233,14 @@ Notable flags: `PROACTIVE`, `KAIROS`, `BRIDGE_MODE`, `VOICE_MODE`, `COORDINATOR_
 | `SOLANA_COMMITMENT` | Solana harness commitment       |
 | `SOLANA_HARNESS_READONLY` | Blocks mutation RPC by default |
 | `LIVE_TRADING`   | Enable live perps trading (default: false)|
+| `OPERATOR_CONFIRMED` | Required operator acknowledgement for live execution |
+| `PERPS_SIM_ONLY` | Must be `false` before real perps execution |
+| `IMPERIAL_ENABLED` | Enable Imperial API reads/routing |
+| `IMPERIAL_LIVE` | Enable Imperial live order path after global gates pass |
+| `IMPERIAL_WALLET` | Wallet pubkey bound to the Imperial JWT |
+| `IMPERIAL_JWT` | Imperial mobile JWT; delegated trading credential |
+| `IMPERIAL_PROFILE_INDEX` | Isolated Imperial profile index (`0..5`) |
+| `IMPERIAL_DEFAULT_UNDERWRITER` | Imperial venue; `2` is Phoenix |
 
 ## MCP Tool Integration
 
@@ -242,6 +250,7 @@ Clawd Code connects to multiple MCP servers for Solana operations:
 |------------|-------|---------|
 | Helius | DAS queries, webhooks, priority fees | Solana blockchain access |
 | Vulcan | Trade execution, portfolio, market data | Phoenix perps trading |
+| Imperial | Funding, portfolio, and live order routing | Solana perps router, Phoenix preferred |
 | DFlow | Spot swaps, prediction markets | DeFi routing |
 | Jupiter | Swap quotes, token lists | DEX aggregation |
 
@@ -254,7 +263,8 @@ Clawd Code connects to multiple MCP servers for Solana operations:
 5. Gate experimental features behind `bun:bundle` feature flags or env checks.
 6. Respect the permission system — tools that modify state must implement `checkPermissions()`.
 7. Use lazy imports when adding dependencies that could create circular references.
-8. Always default to PAPER mode for trades unless LIVE_TRADING is explicitly enabled.
+8. Always default to PAPER mode for trades unless `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, and `PERPS_SIM_ONLY=false`.
 9. Use `clawd-code chain` for Solana RPC inspection and `chain ask` for Z.AI-assisted harness planning.
-10. Never hardcode Solana addresses, transaction signatures, or prices — fetch them from RPC.
-11. Update this file as project conventions evolve.
+10. Treat `IMPERIAL_JWT` like a private trading credential; never display, log, or commit it.
+11. Never hardcode Solana addresses, transaction signatures, or prices — fetch them from RPC or the configured router.
+12. Update this file as project conventions evolve.

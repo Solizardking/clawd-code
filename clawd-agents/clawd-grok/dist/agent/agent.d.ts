@@ -1,3 +1,4 @@
+import { type ProviderId } from "../grok/models";
 import { type ScheduleDaemonStatus, type StoredSchedule } from "../tools/schedule";
 import type { AgentMode, ChatEntry, SessionInfo, SessionSnapshot, StreamChunk, SubagentStatus, TaskRequest, ToolCall, ToolResult, VerifyRecipe } from "../types/index";
 import { type SandboxMode, type SandboxSettings } from "../utils/settings";
@@ -8,6 +9,8 @@ interface AgentOptions {
     sandboxMode?: SandboxMode;
     sandboxSettings?: SandboxSettings;
     batchApi?: boolean;
+    provider?: ProviderId;
+    toolsets?: string[];
 }
 type ProcessMessageFinishReason = "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other";
 export interface ProcessMessageUsage {
@@ -48,6 +51,7 @@ export interface ProcessMessageObserver {
 }
 export declare class Agent {
     private provider;
+    private providerId;
     private apiKey;
     private baseURL;
     private bash;
@@ -69,10 +73,13 @@ export declare class Agent {
     private batchApi;
     private sessionStartHookFired;
     private recapsEnabled;
+    private toolsets;
     constructor(apiKey: string | undefined, baseURL?: string, model?: string, maxToolRounds?: number, options?: AgentOptions);
     getModel(): string;
     setModel(model: string): void;
     getMode(): AgentMode;
+    getProvider(): ProviderId;
+    getToolsets(): string[];
     getSandboxMode(): SandboxMode;
     setSandboxMode(mode: SandboxMode): void;
     getSandboxSettings(): SandboxSettings;
@@ -81,7 +88,8 @@ export declare class Agent {
     setPlanContext(ctx: string | null): void;
     setSendTelegramFile(fn: ((filePath: string) => Promise<ToolResult>) | null): void;
     hasApiKey(): boolean;
-    setApiKey(apiKey: string, baseURL?: string | undefined): void;
+    setApiKey(apiKey: string, baseURL?: string | undefined, providerId?: ProviderId): void;
+    setProvider(provider: ProviderId | string, apiKey?: string, baseURL?: string): void;
     getCwd(): string;
     listSchedules(): Promise<StoredSchedule[]>;
     removeSchedule(id: string): Promise<string>;

@@ -1,6 +1,7 @@
 import type { NormalizedLspSettings } from "../lsp/types";
 import type { AgentMode, ClawdSettings, McpServerConfig, SolanaConfig, SubAgentConfig } from "../types/index.js";
 export type { McpServerConfig } from "../types/index.js";
+import { type ProviderId } from "../grok/models.js";
 export declare function getHomeDir(): string;
 export declare const LEGACY_PROJECT_SETTINGS_DIR = ".grok";
 export declare const PROJECT_SETTINGS_DIR = ".clawd";
@@ -14,8 +15,10 @@ export declare function saveUserSettings(partial: Partial<ClawdSettings>): void;
 export declare function loadProjectSettings(cwd: string): ClawdSettings;
 export declare function saveProjectSettings(cwd: string, partial: Partial<ClawdSettings>): void;
 export declare function saveProjectSettings(partial: Partial<ClawdSettings>): void;
-export declare function getApiKey(): string | undefined;
-export declare function getBaseURL(): string;
+export declare function getApiKey(provider?: ProviderId): string | undefined;
+export declare function getBaseURL(provider?: ProviderId): string;
+export declare function getCurrentProvider(model?: string): ProviderId;
+export declare function getCurrentToolsets(): string[];
 export declare function getSolanaConfig(): SolanaConfig;
 export declare function getSolanaTrackerConfig(): {
     apiKey: string | undefined;
@@ -70,6 +73,14 @@ export type McpRemoteTransport = "stdio" | "sse" | "http";
 export type LspSettings = NormalizedLspSettings;
 export declare function getModeSpecificModel(mode?: AgentMode): string | undefined;
 export declare function getCurrentModel(mode?: AgentMode): string;
+export declare function resolveProviderModelSelection(args: {
+    provider?: ProviderId;
+    model?: string;
+    mode?: AgentMode;
+}): {
+    provider: ProviderId;
+    model: string;
+};
 export declare function parseSubAgentsRawList(value: unknown): SubAgentConfig[];
 export declare function loadValidSubAgents(): SubAgentConfig[];
 export declare function loadMcpServers(): McpServerConfig[];

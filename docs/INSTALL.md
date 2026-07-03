@@ -22,6 +22,11 @@ Smoke mode still runs `npm install`, `npm run build`, and writes a fresh
 `.env` into the configured test config directory. It skips `npm link` so it
 does not mutate the global npm environment.
 
+The generated env includes Imperial router keys. Keep `IMPERIAL_LIVE=false`
+until `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`,
+`IMPERIAL_WALLET`, `IMPERIAL_JWT`, and `IMPERIAL_PROFILE_INDEX` are all set.
+`IMPERIAL_JWT` is a delegated trading credential and must stay out of git.
+
 ## One-Shot Local Install
 
 Run from the package root:
@@ -43,6 +48,9 @@ root and installs from source in one shot.
 - `web/` contains the web client package.
 - Clawd Code is always NemoClaw-enabled: OpenRouter Nemo/Fable routing is built
   into `src/openrouter.ts`.
+- Imperial routing is built into `src/imperial.ts` and `src/modes/trade.ts`.
+  Phoenix remains the default Imperial underwriter (`2`) unless the operator
+  explicitly configures another venue.
 - If an optional `NemoClaw/` sidecar package is present, keep `NemoClaw/src/`
   aligned with `src/openrouter.ts`.
 - Root `.github/`, `docker/`, `scripts/`, `prompts/`, and `outputs/`

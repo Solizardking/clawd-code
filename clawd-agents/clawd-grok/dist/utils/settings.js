@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getModelInfo, normalizeModelId } from "../grok/models.js";
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, getModelInfo, getModelProvider, getProviderDefinition, normalizeModelId, normalizeProviderId, resolveModelRoute, } from "../grok/models.js";
 // === Path Constants ===
 export function getHomeDir() {
     return process.env.HOME || os.homedir();
@@ -47,6 +47,12 @@ export function saveUserSettings(partial) {
         merged.telegram = { ...current.telegram, ...partial.telegram };
     if (partial.mcpServers)
         merged.mcpServers = { ...current.mcpServers, ...partial.mcpServers };
+    if (partial.providerApiKeys) {
+        merged.providerApiKeys = { ...current.providerApiKeys, ...partial.providerApiKeys };
+    }
+    if (partial.providerBaseURLs) {
+        merged.providerBaseURLs = { ...current.providerBaseURLs, ...partial.providerBaseURLs };
+    }
     fs.mkdirSync(getClawdHome(), { recursive: true });
     fs.writeFileSync(USER_SETTINGS_PATH, JSON.stringify(merged, null, 2), "utf-8");
     userSettingsCache = merged;
@@ -89,24 +95,94 @@ export function saveProjectSettings(cwdOrPartial, maybePartial) {
     projectSettingsCache.set(cwd, merged);
 }
 // === API Key Resolution ===
-// Priority: env var > user settings > project settings
-// Uses AI_API_KEY as the primary env var (replaces GROK_API_KEY)
-export function getApiKey() {
-    // 1. Environment variable — XAI_API_KEY is canonical, others are fallbacks
-    const envKey = process.env.XAI_API_KEY || process.env.AI_API_KEY || process.env.GROK_API_KEY;
+// Priority: env var > provider-scoped user settings > legacy user settings.
+export function getApiKey(provider = DEFAULT_PROVIDER) {
+    const envKey = getProviderApiKeyFromEnv(provider);
     if (envKey)
         return envKey;
-    // 2. User settings
     const userSettings = loadUserSettings();
-    // Check for legacy key first
-    const settingsKey = userSettings.aiKey ||
-        userSettings.apiKey;
+    const providerSettingsKey = userSettings.providerApiKeys?.[provider];
+    if (providerSettingsKey)
+        return providerSettingsKey;
+    const settingsKey = provider === "xai" || provider === "custom"
+        ? (userSettings.aiKey ||
+            userSettings.apiKey)
+        : undefined;
     if (settingsKey)
         return settingsKey;
     return undefined;
 }
-export function getBaseURL() {
-    return process.env.AI_BASE_URL || process.env.GROK_BASE_URL || "https://api.x.ai/v1";
+export function getBaseURL(provider = DEFAULT_PROVIDER) {
+    const envURL = getProviderBaseURLFromEnv(provider);
+    if (envURL)
+        return envURL;
+    const userSettings = loadUserSettings();
+    const providerSettingsURL = userSettings.providerBaseURLs?.[provider];
+    if (providerSettingsURL)
+        return providerSettingsURL;
+    if ((provider === "xai" || provider === "custom") && userSettings.baseURL) {
+        return userSettings.baseURL;
+    }
+    return getProviderDefinition(provider).defaultBaseURL;
+}
+export function getCurrentProvider(model) {
+    const modelProvider = model ? getModelProvider(model) : undefined;
+    if (modelProvider)
+        return modelProvider;
+    const envProvider = normalizeProviderId(process.env.CLAWD_PROVIDER || process.env.AI_PROVIDER || process.env.GROK_PROVIDER);
+    if (envProvider)
+        return envProvider;
+    const settings = loadUserSettings();
+    return settings.provider ?? settings.defaultProvider ?? DEFAULT_PROVIDER;
+}
+export function getCurrentToolsets() {
+    const envToolsets = parseToolsets(process.env.CLAWD_TOOLSETS);
+    if (envToolsets.length > 0)
+        return envToolsets;
+    return parseToolsets(loadUserSettings().toolsets);
+}
+function getProviderApiKeyFromEnv(provider) {
+    switch (provider) {
+        case "xai":
+            return process.env.XAI_API_KEY || process.env.AI_API_KEY || process.env.GROK_API_KEY;
+        case "zai":
+            return process.env.ZAI_API_KEY;
+        case "openai":
+            return process.env.OPENAI_API_KEY;
+        case "openrouter":
+            return process.env.OPENROUTER_API_KEY;
+        case "deepseek":
+            return process.env.DEEPSEEK_API_KEY;
+        case "custom":
+            return process.env.CLAWD_API_KEY || process.env.AI_API_KEY;
+    }
+}
+function getProviderBaseURLFromEnv(provider) {
+    switch (provider) {
+        case "xai":
+            return process.env.XAI_BASE_URL || process.env.AI_BASE_URL || process.env.GROK_BASE_URL;
+        case "zai":
+            return process.env.ZAI_BASE_URL;
+        case "openai":
+            return process.env.OPENAI_BASE_URL;
+        case "openrouter":
+            return process.env.OPENROUTER_BASE_URL;
+        case "deepseek":
+            return process.env.DEEPSEEK_BASE_URL;
+        case "custom":
+            return process.env.CLAWD_BASE_URL || process.env.AI_BASE_URL;
+    }
+}
+function parseToolsets(value) {
+    if (Array.isArray(value)) {
+        return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+    }
+    if (typeof value !== "string")
+        return [];
+    return value
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
 }
 // === Solana / Phoenix Config ===
 export function getSolanaConfig() {
@@ -249,13 +325,19 @@ export function getModeSpecificModel(mode) {
     return MODE_DEFAULTS[mode];
 }
 export function getCurrentModel(mode) {
-    const envModel = process.env.GROK_MODEL || process.env.CLAWD_MODEL;
+    const envModel = process.env.CLAWD_MODEL || process.env.GROK_MODEL;
     if (envModel?.trim())
-        return envModel.trim();
+        return normalizeModelId(envModel.trim());
     const settingsModel = loadUserSettings().defaultModel;
     if (settingsModel?.trim())
-        return settingsModel.trim();
-    return getModeSpecificModel(mode) || "grok-4.3";
+        return normalizeModelId(settingsModel.trim());
+    return normalizeModelId(getModeSpecificModel(mode) || DEFAULT_MODEL);
+}
+export function resolveProviderModelSelection(args) {
+    const model = normalizeModelId(args.model || getCurrentModel(args.mode));
+    const provider = args.provider ?? getCurrentProvider(args.model) ?? resolveModelRoute(model).provider;
+    const route = resolveModelRoute(model, provider);
+    return { provider: route.provider, model: route.modelId };
 }
 export function parseSubAgentsRawList(value) {
     if (!Array.isArray(value))

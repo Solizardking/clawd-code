@@ -25,6 +25,9 @@ export const IMAGE_RESOLUTIONS = ["1k", "2k"];
 export const VIDEO_RESOLUTIONS = ["480p", "720p"];
 export async function generateImageTool(provider, input, cwd, abortSignal) {
     try {
+        if (!provider.image) {
+            return failureResult("Image generation failed", new Error("Image generation requires the native xAI provider."));
+        }
         const source = input.source ? await resolveImageSource(input.source, cwd, abortSignal) : null;
         const prompt = source ? { text: input.prompt, images: [source.data] } : input.prompt;
         const response = await generateImage({
@@ -76,6 +79,9 @@ export async function generateImageTool(provider, input, cwd, abortSignal) {
 }
 export async function generateVideoTool(provider, input, cwd, abortSignal) {
     try {
+        if (!provider.video) {
+            return failureResult("Video generation failed", new Error("Video generation requires the native xAI provider."));
+        }
         const source = input.source ? await resolveImageSource(input.source, cwd, abortSignal) : null;
         const prompt = source ? { text: input.prompt, image: source.dataUrl } : input.prompt;
         const response = await generateVideo({

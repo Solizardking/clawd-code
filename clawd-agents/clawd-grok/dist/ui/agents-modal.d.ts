@@ -16,7 +16,7 @@ export declare function SubagentsBrowserModal({ t, width, height, selectedIndex,
     selectedIndex: number;
     searchQuery: string;
     rows: SubagentBrowseRow[];
-}): import("react").ReactNode;
+}): any;
 export declare function SubagentEditorModal({ t, width, height, draft, focusedField, modelIndex, error, title, nameRef, instructionRef, onSubmit, showRemoveHint, }: {
     t: Theme;
     width: number;
@@ -33,4 +33,4 @@ export declare function SubagentEditorModal({ t, width, height, draft, focusedFi
     instructionRef: RefObject<TextareaRenderable | null>;
     onSubmit: () => void;
     showRemoveHint?: boolean;
-}): import("react").ReactNode;
+}): any;

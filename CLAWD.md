@@ -76,6 +76,14 @@ Set in `~/.clawd-code/.env` or project `.env`:
 | `SOLANA_HARNESS_READONLY` | Keep mutation RPC blocked unless explicitly false |
 | `VULCAN_MCP_URL` | Vulcan MCP server URL |
 | `LIVE_TRADING` | Enable live trading (default: false) |
+| `OPERATOR_CONFIRMED` | Required operator acknowledgement for live execution |
+| `PERPS_SIM_ONLY` | Must be `false` before real perps execution |
+| `IMPERIAL_ENABLED` | Enable Imperial API reads/routing |
+| `IMPERIAL_LIVE` | Enable Imperial live order path after global gates |
+| `IMPERIAL_WALLET` | Wallet pubkey bound to the Imperial JWT |
+| `IMPERIAL_JWT` | Imperial mobile JWT; secret delegated trading credential |
+| `IMPERIAL_PROFILE_INDEX` | Isolated Imperial profile index (`0..5`) |
+| `IMPERIAL_DEFAULT_UNDERWRITER` | Default Imperial venue; `2` = Phoenix |
 | `CLAWD_STREAM` | Enable streaming output by default (default: false) |
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather, required for `clawd-code telegram` |
 | `TELEGRAM_ALLOWED_CHAT_ID` | The only chat id the relay will respond to, required for `clawd-code telegram` |

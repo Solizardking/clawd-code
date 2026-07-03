@@ -39,6 +39,7 @@ Clawd Code operates across the package root CLI modes. Route user requests accor
 | `clawd-code perps` | Perpetuals dashboard |
 | `clawd-code funding` | Funding rate dashboard |
 | `clawd-code trade "<intent>"` | Trade/funding/position workflow |
+| `clawd-code imperial status` | Imperial router readiness and profile status |
 | `clawd-code research "<prompt>"` | Multi-agent research |
 | `clawd-code image "<prompt>"` | Image generation |
 | `clawd-code repl` | Interactive provider/model switching session |
@@ -64,7 +65,14 @@ Required in `~/.clawd-code/.env`:
 | `OPENROUTER_FABLE5` | No | `anthropic/claude-fable-5` |
 | `OPENROUTER_FABLE_LATESY` | No | `~anthropic/claude-fable-latest` |
 | `LIVE_TRADING` | No | `false` |
+| `OPERATOR_CONFIRMED` | No | `false` |
 | `PERPS_SIM_ONLY` | No | `true` |
+| `IMPERIAL_ENABLED` | No | `false` |
+| `IMPERIAL_LIVE` | No | `false` |
+| `IMPERIAL_WALLET` | Yes for live Imperial | — |
+| `IMPERIAL_JWT` | Yes for live Imperial | — |
+| `IMPERIAL_PROFILE_INDEX` | Yes for live Imperial | `0` |
+| `IMPERIAL_DEFAULT_UNDERWRITER` | No | `2` Phoenix |
 | `TELEGRAM_BOT_TOKEN` | Yes for `clawd-code telegram` | — |
 | `TELEGRAM_ALLOWED_CHAT_ID` | Yes for `clawd-code telegram` | — |
 
@@ -73,10 +81,13 @@ Required in `~/.clawd-code/.env`:
 1. **Default to PAPER mode** — never execute live trading without confirmation
 2. **Preflight required** — always run clawd-code verify before any trading operation
 3. **Live mode gates** — requires all three: `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`
-4. **Never share private keys** — wallet files are `0600` permissions
-5. **Always use <clawd-think>Probe the numinous, then execute the work.</clawd-think>** on first turn
-6. **Signal confidence must be explicit** — label confidence scores for every trading signal
-7. **Never invent signatures, prices, or addresses** — say "not available" when data isn't in hand
+4. **Imperial live gates** — also require `IMPERIAL_LIVE=true`, `IMPERIAL_WALLET`, `IMPERIAL_JWT`, and `IMPERIAL_PROFILE_INDEX`
+5. **Treat Imperial JWT as a trading credential** — never display, log, or commit it
+6. **Phoenix default** — Imperial underwriter `2` is preferred unless the operator explicitly requests another venue
+7. **Never share private keys** — wallet files are `0600` permissions
+8. **Always use <clawd-think>Probe the numinous, then execute the work.</clawd-think>** on first turn
+9. **Signal confidence must be explicit** — label confidence scores for every trading signal
+10. **Never invent signatures, prices, or addresses** — say "not available" when data isn't in hand
 
 ## Reference Files
 

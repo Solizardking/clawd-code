@@ -226,6 +226,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
 | `clawd-code wallet list` | List local wallet public keys |
 | `clawd-code perps` | Show perps dashboard |
 | `clawd-code funding` | Show funding-rate dashboard |
+| `clawd-code imperial <status|funding|balances|positions|orders>` | Imperial router readiness and read workflows |
 | `clawd-code research "<prompt>"` | Run multi-agent research (streaming with `--stream`) |
 | `clawd-code image "<prompt>"` | Generate images with GLM-Image when configured |
 | `clawd-code voice "<text>"` | Generate voice via local TTS or xAI Voice Agent API |
@@ -294,6 +295,15 @@ Runtime configuration lives in `~/.clawd-code/.env`. Start from
 | `LIVE_TRADING` | Enables live trading path when true | `false` |
 | `OPERATOR_CONFIRMED` | Required operator acknowledgement for live trading | `false` |
 | `PERPS_SIM_ONLY` | Keeps perps execution simulated | `true` |
+| `IMPERIAL_ENABLED` | Enables Imperial API reads/routing in trade mode | `false` |
+| `IMPERIAL_LIVE` | Enables Imperial live order path after global gates pass | `false` |
+| `IMPERIAL_API_BASE_URL` | Imperial REST API base | `https://api.imperial.space/api/v1` |
+| `IMPERIAL_WALLET` | Solana wallet pubkey bound to the Imperial JWT | empty |
+| `IMPERIAL_JWT` | Imperial mobile JWT; treat as a trading credential | empty |
+| `IMPERIAL_PROFILE_INDEX` | Isolated Imperial profile index, `0..5` | `0` |
+| `IMPERIAL_DEFAULT_UNDERWRITER` | Default venue route; `2` is Phoenix | `2` |
+| `IMPERIAL_ALLOWED_SYMBOLS` | Symbol allowlist for Imperial execution | `SOL,ETH,BTC` |
+| `IMPERIAL_MAX_NOTIONAL_USD` | Imperial-specific notional cap | `250` |
 
 ### Default Models Per Mode
 
@@ -407,9 +417,28 @@ OPERATOR_CONFIRMED=true
 PERPS_SIM_ONLY=false
 ```
 
+Imperial routing adds its own gate. To route live orders through Imperial, also
+set `IMPERIAL_LIVE=true`, `IMPERIAL_WALLET=<pubkey>`,
+`IMPERIAL_JWT=<mobile-jwt>`, and `IMPERIAL_PROFILE_INDEX=0..5`. The default
+Imperial underwriter is Phoenix (`IMPERIAL_DEFAULT_UNDERWRITER=2`). Every live
+order checks `success` in the Imperial response body; HTTP 200 alone is not
+treated as an accepted order.
+
+Useful Imperial commands:
+
+```bash
+clawd-code imperial status
+clawd-code imperial funding
+clawd-code imperial balances
+clawd-code imperial positions
+clawd-code trade "imperial short SOL $100" --market-price 64.94
+```
+
+`IMPERIAL_JWT` is equivalent to delegated trading access for that wallet's
+profiles. Never commit it, log it, or share it outside the operator boundary.
 The trade mode also applies local preflight constraints such as allowed symbols,
-maximum notional, maximum leverage, and maximum spread. Review the code and your
-configuration before enabling live execution.
+maximum notional, maximum leverage, and market-price scaling before any live
+Imperial submission.
 
 ## AI Providers
 

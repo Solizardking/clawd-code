@@ -31,7 +31,7 @@ const TABLE_OPTIONS = {
 };
 export function Markdown({ content, t }) {
     const syntaxStyle = useMemo(() => buildSyntaxStyle(t), [t]);
-    return (_jsx("markdown", { content: content, syntaxStyle: syntaxStyle, conceal: true,
+    return (_jsx("markdown", { content: content, syntaxStyle: syntaxStyle, conceal: true, 
         // @ts-expect-error MarkdownProps omits inherited Renderable.selectable; needed for TUI text selection
         selectable: true, tableOptions: TABLE_OPTIONS, flexShrink: 0 }));
 }

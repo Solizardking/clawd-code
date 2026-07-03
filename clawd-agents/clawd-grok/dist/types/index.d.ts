@@ -1,6 +1,7 @@
 /**
  * Shared TypeScript types for Clawd CLI.
  */
+import type { ProviderId } from "../grok/models";
 export interface ToolResult {
     success: boolean;
     output?: string;
@@ -405,10 +406,18 @@ export interface AgentConfig {
     sandboxMode?: string;
     sandboxSettings?: Record<string, unknown>;
     batchApi?: boolean;
+    provider?: ProviderId;
+    toolsets?: string[];
 }
 export interface ClawdSettings {
     defaultModel?: string;
     model?: string;
+    provider?: ProviderId;
+    defaultProvider?: ProviderId;
+    baseURL?: string;
+    providerApiKeys?: Partial<Record<ProviderId, string>>;
+    providerBaseURLs?: Partial<Record<ProviderId, string>>;
+    toolsets?: string[];
     defaultMaxToolRounds?: number;
     subAgents?: SubAgentConfig[];
     hooks?: HookConfig;

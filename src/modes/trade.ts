@@ -46,12 +46,17 @@ export class TradeMode {
     return getTradingGateState(process.env);
   }
 
+  private displayUrl(url: string | undefined): string {
+    if (!url) return '(unset)';
+    return url.replace(/([?&](?:api-key|apikey|key|token)=)[^&]+/gi, '$1***');
+  }
+
   async run(args: string[]): Promise<void> {
     const command = this.commandText(args);
     const imperial = this.imperialConfig();
 
     console.log('\n[TRADE MODE] Entering perpetuals trading mode...\n');
-    console.log(`[TRADE MODE] RPC: ${this.config.rpcUrl}`);
+    console.log(`[TRADE MODE] RPC: ${this.displayUrl(this.config.rpcUrl)}`);
     console.log(`[TRADE MODE] Live Trading: ${this.config.liveTrading}`);
     console.log(`[TRADE MODE] Operator Confirmed: ${this.config.operatorConfirmed}`);
     console.log(`[TRADE MODE] Imperial: ${imperial.enabled ? 'enabled' : 'disabled'} (${imperialUnderwriterLabel(imperial.defaultUnderwriter)}, profile ${imperial.profileIndex})`);
@@ -833,7 +838,7 @@ print(json.dumps(markets, indent=2))
     const readiness = getImperialLiveReadiness(imperial, gates);
     console.log('\n[TRADE MODE] Status:');
     console.log('  Mode:', gates.liveTrading && !gates.perpsSimOnly ? '🚀 LIVE' : '📄 PAPER');
-    console.log('  RPC:', this.config.rpcUrl);
+    console.log('  RPC:', this.displayUrl(this.config.rpcUrl));
     console.log('  Vulcan CLI:', this.getVulcanCommand());
     console.log('  Max Notional:', '$' + (this.config.perpsMaxNotional || 250));
     console.log('  Max Leverage:', (this.config.perpsMaxLeverage || 3) + '×');

@@ -11,12 +11,15 @@ clawd-code code "Create an Anchor program for token staking"
 ```
 
 ### TRADE MODE
-Perpetuals trading with Phoenix Rise + Vulcan MCP.
+Perpetuals trading with Imperial routing, Phoenix as the preferred default
+venue, and Vulcan/Phoenix fallback workflows.
 
 ```bash
 clawd-code trade "SOL funding rate?"
 clawd-code trade "short SOL $100"
 clawd-code trade "long ETH $50"
+clawd-code imperial status
+clawd-code imperial positions
 ```
 
 **Preflight checks (all required for live):**
@@ -28,6 +31,10 @@ clawd-code trade "long ETH $50"
 **Execution modes:**
 - PAPER (default) — simulated execution
 - LIVE — requires `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`
+- IMPERIAL LIVE — also requires `IMPERIAL_LIVE=true`, `IMPERIAL_WALLET`, `IMPERIAL_JWT`, and `IMPERIAL_PROFILE_INDEX`
+
+`IMPERIAL_JWT` is delegated trading access for the configured wallet/profile.
+Never print or commit it.
 
 ### RESEARCH MODE
 Multi-agent deep research with the configured provider. The default provider is
@@ -65,6 +72,7 @@ clawd-code voice "Clawd Code is operational"
 | `clawd-code perps` | Perpetuals dashboard |
 | `clawd-code funding` | Funding rate dashboard |
 | `clawd-code trade "<intent>"` | Trade/funding/position workflow |
+| `clawd-code imperial status` | Imperial router readiness/profile status |
 | `clawd-code research "<prompt>"` | Research mode |
 | `clawd-code image "<prompt>"` | Image mode |
 | `clawd-code repl` | Interactive model/provider session |
