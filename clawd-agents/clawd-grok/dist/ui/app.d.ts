@@ -18,5 +18,5 @@ interface AppProps {
     initialMessage?: string;
     onExit?: () => void;
 }
-export declare function App({ agent, startupConfig, initialMessage, onExit }: AppProps): any;
+export declare function App({ agent, startupConfig, initialMessage, onExit }: AppProps): import("react").ReactNode;
 export {};

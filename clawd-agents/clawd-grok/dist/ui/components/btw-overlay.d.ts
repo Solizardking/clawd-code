@@ -8,4 +8,4 @@ export interface BtwState {
 export declare function BtwOverlay({ state, theme: t }: {
     state: BtwState;
     theme: Theme;
-}): any;
+}): import("react").ReactNode;

@@ -12,4 +12,4 @@ export declare function ScheduleBrowserModal({ t, width, height, selectedIndex, 
     selectedIndex: number;
     searchQuery: string;
     rows: ScheduleBrowseRow[];
-}): any;
+}): import("react").ReactNode;

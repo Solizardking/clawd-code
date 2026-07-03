@@ -3,4 +3,4 @@ export declare function SuggestionOverlay({ t, suggestions, selectedIndex, }: {
     t: Theme;
     suggestions: string[];
     selectedIndex: number;
-}): any;
+}): import("react").ReactNode;

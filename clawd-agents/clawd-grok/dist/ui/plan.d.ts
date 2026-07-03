@@ -5,7 +5,7 @@ interface PlanViewProps {
     plan: Plan;
     t: Theme;
 }
-export declare function PlanView({ plan, t }: PlanViewProps): any;
+export declare function PlanView({ plan, t }: PlanViewProps): import("react").ReactNode;
 export interface PlanQuestionsState {
     tab: number;
     selected: number;
@@ -19,6 +19,6 @@ interface PlanQuestionsPanelProps {
     questions: PlanQuestion[];
     state: PlanQuestionsState;
 }
-export declare function PlanQuestionsPanel({ t, questions, state }: PlanQuestionsPanelProps): any;
+export declare function PlanQuestionsPanel({ t, questions, state }: PlanQuestionsPanelProps): import("react").ReactNode;
 export declare function formatPlanAnswers(questions: PlanQuestion[], answers: PlanAnswers): string;
 export {};

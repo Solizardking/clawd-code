@@ -1,3 +1,4 @@
+import { type ToolSet } from "ai";
 import type { BashTool } from "../tools/bash";
 import type { ScheduleManager } from "../tools/schedule";
 import type { AgentMode, TaskRequest, ToolResult } from "../types/index";
