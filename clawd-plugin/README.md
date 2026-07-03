@@ -5,10 +5,10 @@ references, expert coding patterns, perpetuals workflows, x402 payments, and
 autonomous agent commerce guidance.
 
 This plugin targets the Clawd Code package root at `/Users/8bit/clawd-code`.
-Clawd Code is always NemoClaw-enabled: OpenRouter Nemo/Fable routing is built
-into the CLI provider adapter at `src/openrouter.ts`. If an optional
-`NemoClaw/` sidecar package is present, keep it aligned with that runtime
-adapter and this plugin reference.
+Z.AI (GLM-5.2) is the default provider everywhere Clawd Code runs — CLI, this
+plugin's MCP server, the web client, and the Telegram relay. OpenRouter
+Nemo/Fable routing is built into the CLI provider adapter at
+`src/openrouter.ts` for when you switch providers explicitly.
 
 ## Install
 
@@ -29,7 +29,7 @@ clawd --plugin-dir ./clawd-code/clawd-plugin
 
 **Helius MCP Server** — auto-starts with the plugin. 10 routed tools covering DAS API, RPC, webhooks, streaming, wallet analysis, and docs.
 
-**Clawd Code MCP Server** — auto-starts the Clawd Code CLI as an MCP server for code generation, trading, research, images, and voice.
+**Clawd Code MCP Server** — auto-starts the Clawd Code CLI as an MCP server for code generation, trading, research, images, and voice. Defaults to Z.AI (GLM-5.2) via `ZAI_API_KEY`.
 
 **Phoenix Rise MCP Server** — auto-starts for real-time perpetuals orderbook and funding rate data.
 
@@ -52,11 +52,16 @@ Deep documentation bundled with each skill covering DAS API, Sender, Priority Fe
 
 ## API Key Setup
 
-Set in `~/.clawd-code/.env`:
+Set in `~/.clawd-code/.env`. `ZAI_API_KEY` is the only key required out of the
+box — every mode, the MCP server in this plugin, and the Telegram relay
+default to Z.AI (GLM-5.2):
 
 ```bash
-XAI_API_KEY=your-xai-key
+# Default provider — required
 ZAI_API_KEY=your-zai-key
+
+# Other providers — optional, only needed if you switch CLAWD_PROVIDER
+XAI_API_KEY=your-xai-key
 OPENROUTER_API_KEY=your-openrouter-key
 OPENROUTER_NEMO_MODEL1=nvidia/nemotron-3-ultra-550b-a55b:free
 OPENROUTER_NEMO_MODEL2=nvidia/nemotron-3-ultra-550b-a55b
@@ -65,6 +70,10 @@ OPENROUTER_FABLE5=anthropic/claude-fable-5
 OPENROUTER_FABLE_LATESY=~anthropic/claude-fable-latest
 HELIUS_API_KEY=your-helius-key
 SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=your-helius-key
+
+# Telegram relay — optional, only needed for `clawd-code telegram`
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_ALLOWED_CHAT_ID=your-chat-id
 ```
 
 ## Usage
@@ -79,6 +88,7 @@ Once installed, just ask questions in plain English:
 - "Create wallet and show me my balance"
 - "Set up webhooks to monitor my wallet"
 - "Parse this transaction: 5abc..."
+- "Start the Telegram relay so I can chat with my agent from my phone"
 
 Your agent picks the right tools and reads the right reference files automatically.
 

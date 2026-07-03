@@ -1,6 +1,6 @@
 # Clawd Code Skill
 
-> Makes your AI agent an expert at using the Clawd Code CLI — Solana-native coding agent with code, chain, chart, trade, research, image, voice, and REPL modes.
+> Makes your AI agent an expert at using the Clawd Code CLI — Solana-native coding agent with code, chain, chart, trade, research, image, voice, REPL, and Telegram relay modes. Z.AI (GLM-5.2) is the default provider everywhere — CLI, MCP server, web client, and the Telegram relay.
 
 ## When to Use This Skill
 
@@ -26,6 +26,7 @@ Clawd Code operates across the package root CLI modes. Route user requests accor
 | IMAGE | "generate image", "create image", "draw" | `clawd-code image "<prompt>"` |
 | VOICE | "speak", "say", "tts", "voice" | `clawd-code voice "<text>"` |
 | REPL | "interactive", "chat", "session" | `clawd-code repl` |
+| TELEGRAM | "telegram", "telegram bot", "relay from my phone" | `clawd-code telegram` |
 
 ## Quick Commands
 
@@ -42,6 +43,7 @@ Clawd Code operates across the package root CLI modes. Route user requests accor
 | `clawd-code image "<prompt>"` | Image generation |
 | `clawd-code repl` | Interactive provider/model switching session |
 | `clawd-code verify` | Preflight environment checks |
+| `clawd-code telegram` | Start the Telegram relay (chat/CLI only, Z.AI by default, no computer-use) |
 
 ## Environment Variables
 
@@ -63,6 +65,8 @@ Required in `~/.clawd-code/.env`:
 | `OPENROUTER_FABLE_LATESY` | No | `~anthropic/claude-fable-latest` |
 | `LIVE_TRADING` | No | `false` |
 | `PERPS_SIM_ONLY` | No | `true` |
+| `TELEGRAM_BOT_TOKEN` | Yes for `clawd-code telegram` | — |
+| `TELEGRAM_ALLOWED_CHAT_ID` | Yes for `clawd-code telegram` | — |
 
 ## Safety Rules
 
@@ -79,4 +83,4 @@ Required in `~/.clawd-code/.env`:
 - `references/` — Deep reference docs for Clawd Code CLI usage, wallet operations, perps workflows, and integration patterns
 - Package root: `/Users/8bit/clawd-code`
 - Plugin root: `/Users/8bit/clawd-code/clawd-plugin`
-- NemoClaw routing is always enabled through `src/openrouter.ts`; keep any optional `NemoClaw/` sidecar aligned with that adapter.
+- OpenRouter Nemo/Fable routing is built into `src/openrouter.ts`; there is no separate `NemoClaw/` sidecar package in the current checkout.

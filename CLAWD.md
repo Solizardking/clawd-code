@@ -10,18 +10,23 @@ This monorepo contains the Clawd Code ecosystem — Solana-native AI coding agen
 | Package | What it does |
 | --- | --- |
 | `clawd-plugin/` | Clawd Code plugin — bundles skills + auto-starts MCP servers |
-| `src/` | Clawd Code CLI source — code/trade/research/image/voice modes |
+| `src/` | Clawd Code CLI source — code/trade/chain/chart/research/image/voice/repl/telegram modes |
 | `web/` | Web client package |
-| `docs/` | Installer and repository layout notes |
-| `dist/` | Built CLI output |
+| `dist/` | Built CLI output (git-ignored; produced by `npm run build`) |
+
+`src/` contains exactly the CLI's real import closure (`cli.ts`, `commands.ts`,
+`env.ts`, `zai.ts`, `xai.ts`, `wallet.ts`, `arena.ts`, `deepseek.ts`,
+`openrouter.ts`, `grok-models.ts`, `verify.ts`, `voice-agent.ts`,
+`solana-harness.ts`, `x402.ts`, `telegram.ts`, plus `src/modes/`) — `tsconfig.json`
+`include` is scoped to that list on purpose; don't widen it back to `src/**/*`.
 
 OpenRouter Nemo routing is built into `src/openrouter.ts` through
 `OPENROUTER_NEMO_MODEL1/2/3`. Fable routes are also available through
-`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`. Treat Clawd Code as
-NemoClaw-enabled at all times: the core runtime is `src/openrouter.ts`, and an
-optional `NemoClaw/` sidecar should stay aligned with that adapter if added.
-Root `.github/`, `docker/`, `scripts/`, `prompts/`, and `outputs/` directories
-are optional workspace folders and are not required by the installer.
+`OPENROUTER_FABLE5` and `OPENROUTER_FABLE_LATESY`. There is no separate
+`NemoClaw/` sidecar package in this checkout — Nemo/Fable routing lives
+entirely in `src/openrouter.ts`. Z.AI (GLM-5.2, via `ZAI_API_KEY`) is the
+default provider everywhere: CLI, `clawd-plugin`'s MCP server, `web/`, and the
+Telegram relay (`clawd-code telegram`).
 
 ## MCP Server Setup
 
@@ -34,7 +39,7 @@ clawd --plugin-dir ./clawd-plugin
 Configured servers:
 
 - **Helius** — 10 routed tools for Solana blockchain access (local core-ai build)
-- **Clawd Code** — Clawd Code CLI as MCP server
+- **Clawd Code** — Clawd Code CLI as MCP server (`CLAWD_PROVIDER=zai`, `ZAI_API_KEY` wired by default in `clawd-plugin/.mcp.json`)
 - **Pump MCP** — 55 tools for Pump.fun: token creation, AMM swaps, analytics, wallet ops
 - **Phoenix Rise** — Real-time perpetuals market data
 - **DFlow** — Trading API details and code examples
@@ -72,6 +77,20 @@ Set in `~/.clawd-code/.env` or project `.env`:
 | `VULCAN_MCP_URL` | Vulcan MCP server URL |
 | `LIVE_TRADING` | Enable live trading (default: false) |
 | `CLAWD_STREAM` | Enable streaming output by default (default: false) |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather, required for `clawd-code telegram` |
+| `TELEGRAM_ALLOWED_CHAT_ID` | The only chat id the relay will respond to, required for `clawd-code telegram` |
+
+## Telegram Relay
+
+`clawd-code telegram` starts a long-poll relay that routes messages from a
+single allowlisted Telegram chat into the Z.AI GLM chat pipeline (`CLAWD_MODEL`,
+default `glm-5.2`). Chat/CLI relay only — it does **not** expose computer-use,
+mouse/keyboard, or OS-level control. Unauthorized chats are rejected and
+logged; `/reset` clears the relay's in-memory conversation history.
+
+```bash
+TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
+```
 
 ## Skills
 

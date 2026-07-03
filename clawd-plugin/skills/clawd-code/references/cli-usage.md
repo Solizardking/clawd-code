@@ -72,6 +72,7 @@ clawd-code voice "Clawd Code is operational"
 | `clawd-code provider` | Show/switch AI provider |
 | `clawd-code goal <text>` | Natural language intent router |
 | `clawd-code verify` | Preflight environment checks |
+| `clawd-code telegram` | Start the Telegram relay — routes an allowlisted chat's messages through Z.AI (chat/CLI only, no computer-use). Requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_ID`. |
 
 ## Output Format
 
