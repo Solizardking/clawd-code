@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { CLAWD_MINT, arena } from './arena.js';
 import { loadClawdEnv } from './env.js';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './grok-models.js';
+import { getImperialConfig, getTradingGateState } from './imperial.js';
 import {
   getInstalledSpinnerVerbs,
   installSpinnerPack,
@@ -34,6 +35,8 @@ type JsonRpcResponse<T = unknown> = {
 function aiModeConfig(): any {
   const env = loadClawdEnv();
   const zai = getZaiEnvConfig(env);
+  const gates = getTradingGateState(env);
+  const imperial = getImperialConfig(env);
   return {
     provider: env.CLAWD_PROVIDER || DEFAULT_PROVIDER,
     model: env.CLAWD_MODEL || DEFAULT_MODEL,
@@ -52,8 +55,12 @@ function aiModeConfig(): any {
     deepSeekBaseUrl: env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
     agentCount: parseInt(env.CLAWD_AGENT_COUNT || '4', 10),
     rpcUrl: env.SOLANA_RPC_URL || env.HELIUS_RPC_URL || HELIUS_RPC,
-    liveTrading: env.LIVE_TRADING === 'true',
-    operatorConfirmed: env.OPERATOR_CONFIRMED === 'true',
+    liveTrading: gates.liveTrading,
+    operatorConfirmed: gates.operatorConfirmed,
+    perpsSimOnly: gates.perpsSimOnly,
+    perpsMaxNotional: imperial.maxNotionalUsd,
+    perpsMaxLeverage: imperial.maxLeverage,
+    imperial,
   };
 }
 
@@ -221,6 +228,11 @@ export async function cmdStrategies(args: string[]): Promise<void> {
   console.log('║  Status: vulcan strategy status <run-id>               ║');
   console.log('║  Stop:   vulcan strategy stop <run-id>                 ║');
   console.log('╚════════════════════════════════════════════════════════╝\n');
+}
+
+export async function cmdImperial(args: string[]): Promise<void> {
+  const { TradeMode } = await import('./modes/trade.js');
+  await new TradeMode(aiModeConfig()).run(['imperial', ...args]);
 }
 
 export async function cmdAgents(args: string[]): Promise<void> {
@@ -473,6 +485,7 @@ export async function cmdHelp(args: string[]): Promise<void> {
   console.log('║  funding         Funding rates                         ║');
   console.log('║  signals         Composite trading signals             ║');
   console.log('║  strategies      Vulcan strategy runners               ║');
+  console.log('║  imperial        Imperial router status/read workflows  ║');
   console.log('║  arena [sub]     Agent Arena: mint|register|fetch|review║');
   console.log('║  agents          Clawd agent registry                  ║');
   console.log('║  spinner         List/install themed spinner packs     ║');

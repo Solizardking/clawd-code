@@ -19,6 +19,7 @@ import {
   computerWait,
 } from "../tools/computer";
 import { editFile, readFile, writeFile } from "../tools/file";
+import { buildCamsnapFileName, resolveCamsnapOutputPath, runCamsnap } from "../tools/camsnap";
 import { executeGrep } from "../tools/grep";
 import type { ScheduleDaemonStatus, ScheduleManager, StoredSchedule } from "../tools/schedule";
 import type { AgentMode, TaskRequest, ToolResult } from "../types/index";
@@ -46,6 +47,7 @@ interface CreateToolsOptions {
   subagents?: CustomSubagentConfig[];
   sendTelegramFile?: (filePath: string) => Promise<ToolResult>;
   sessionId?: string;
+  toolsets?: string[];
 }
 
 export function createTools(
@@ -55,12 +57,21 @@ export function createTools(
   options: CreateToolsOptions = {},
 ) {
   const cwd = () => bash.getCwd();
+  const enabledToolsets = new Set((options.toolsets ?? []).map((toolset) => toolset.trim().toLowerCase()));
 
   const runResponsesSearch = async (
     query: string,
     toolName: "web_search" | "x_search",
     abortSignal?: AbortSignal,
   ): Promise<{ success: boolean; output: string }> => {
+    if (!provider.responses || !provider.tools) {
+      const label = toolName === "web_search" ? "Web search" : "X search";
+      return {
+        success: false,
+        output: `${label} requires the native xAI provider. Re-run with --provider xai and an XAI_API_KEY.`,
+      };
+    }
+
     try {
       const searchTools = {
         ...(toolName === "web_search" ? { web_search: provider.tools.webSearch() } : {}),
@@ -244,6 +255,12 @@ export function createTools(
           .describe("Optional file path for the generated image. For multiple images, numbered suffixes are added."),
       }),
       execute: async (input: GenerateImageToolInput, { abortSignal }) => {
+        if (!provider.image) {
+          return {
+            success: false,
+            output: "Image generation requires the native xAI provider. Re-run with --provider xai and an XAI_API_KEY.",
+          };
+        }
         return generateImageTool(provider, input, cwd(), abortSignal);
       },
     }),
@@ -281,12 +298,108 @@ export function createTools(
           .describe("Optional timeout in milliseconds while waiting for video generation"),
       }),
       execute: async (input: GenerateVideoToolInput, { abortSignal }) => {
+        if (!provider.video) {
+          return {
+            success: false,
+            output: "Video generation requires the native xAI provider. Re-run with --provider xai and an XAI_API_KEY.",
+          };
+        }
         return generateVideoTool(provider, input, cwd(), abortSignal);
       },
     }),
   };
 
   const tools: ToolSet = { ...base };
+
+  if (enabledToolsets.has("camsnap")) {
+    tools.camsnap_discover = tool({
+      description:
+        "Discover configured or visible cameras using camsnap. Use this before snapping or recording when the camera name is unknown.",
+      inputSchema: z.object({
+        info: z.boolean().optional().describe("Include detailed camera info. Defaults to true."),
+      }),
+      execute: async ({ info }, { abortSignal }) => {
+        return runCamsnap(["discover", ...(info === false ? [] : ["--info"])], {
+          cwd: cwd(),
+          timeoutMs: 30_000,
+          abortSignal,
+        });
+      },
+    });
+
+    tools.camsnap_doctor = tool({
+      description:
+        "Run camsnap diagnostics. Use when camera capture fails, ffmpeg is missing, or the camera config may be invalid.",
+      inputSchema: z.object({
+        probe: z.boolean().optional().describe("Probe cameras and ffmpeg in addition to static diagnostics."),
+      }),
+      execute: async ({ probe }, { abortSignal }) => {
+        return runCamsnap(["doctor", ...(probe ? ["--probe"] : [])], {
+          cwd: cwd(),
+          timeoutMs: 45_000,
+          abortSignal,
+        });
+      },
+    });
+
+    tools.camsnap_snap = tool({
+      description:
+        "Capture one still image from a configured camera with camsnap. Prefer a short test capture before asking for longer clips.",
+      inputSchema: z.object({
+        camera: z.string().describe("Camera name or id from camsnap config/discover"),
+        output_path: z.string().optional().describe("Optional output image path. Defaults to .clawd/camsnap/*.jpg."),
+      }),
+      execute: async ({ camera, output_path }, { abortSignal }) => {
+        const outputPath = resolveCamsnapOutputPath(cwd(), output_path, buildCamsnapFileName(camera, "jpg"));
+        const result = await runCamsnap(["snap", camera, "--out", outputPath], {
+          cwd: cwd(),
+          timeoutMs: 45_000,
+          abortSignal,
+        });
+        return result.success ? { ...result, output: `${result.output}\nSaved: ${outputPath}` } : result;
+      },
+    });
+
+    tools.camsnap_clip = tool({
+      description:
+        "Record a short video clip from a configured camera with camsnap. Keep duration short unless the user explicitly asks for longer.",
+      inputSchema: z.object({
+        camera: z.string().describe("Camera name or id from camsnap config/discover"),
+        duration: z.string().optional().describe("Clip duration such as 5s or 10s. Defaults to 5s."),
+        output_path: z.string().optional().describe("Optional output video path. Defaults to .clawd/camsnap/*.mp4."),
+      }),
+      execute: async ({ camera, duration, output_path }, { abortSignal }) => {
+        const outputPath = resolveCamsnapOutputPath(cwd(), output_path, buildCamsnapFileName(camera, "mp4"));
+        const clipDuration = duration || "5s";
+        const result = await runCamsnap(["clip", camera, "--dur", clipDuration, "--out", outputPath], {
+          cwd: cwd(),
+          timeoutMs: 120_000,
+          abortSignal,
+        });
+        return result.success ? { ...result, output: `${result.output}\nSaved: ${outputPath}` } : result;
+      },
+    });
+
+    tools.camsnap_watch = tool({
+      description:
+        "Run a bounded camsnap motion watch for one camera. Use only when the user explicitly asks to monitor for motion.",
+      inputSchema: z.object({
+        camera: z.string().describe("Camera name or id from camsnap config/discover"),
+        threshold: z.number().min(0).max(1).optional().describe("Motion threshold. Defaults to 0.2."),
+        action: z.string().optional().describe("Optional camsnap action command to run on motion."),
+        timeout_ms: z.number().int().min(1000).max(300000).optional().describe("Maximum watch time. Defaults to 60000."),
+      }),
+      execute: async ({ camera, threshold, action, timeout_ms }, { abortSignal }) => {
+        const args = ["watch", camera, "--threshold", String(threshold ?? 0.2)];
+        if (action) args.push("--action", action);
+        return runCamsnap(args, {
+          cwd: cwd(),
+          timeoutMs: timeout_ms ?? 60_000,
+          abortSignal,
+        });
+      },
+    });
+  }
 
   if (isLspToolEnabled(cwd())) {
     tools.lsp = tool({

@@ -12,6 +12,7 @@ import {
   getSupportedReasoningEfforts,
   MODELS,
   normalizeModelId,
+  type ProviderId,
 } from "../grok/models";
 import type { LspDiagnostic } from "../lsp/types";
 import { POPULAR_MCP_CATALOG } from "../mcp/catalog";
@@ -588,10 +589,12 @@ const MCP_STDIO_FIELDS: McpEditorField[] = ["transport", "label", "command", "ar
 export interface AppStartupConfig {
   apiKey: string | undefined;
   baseURL: string;
+  provider: ProviderId;
   model: string;
   sandboxMode: SandboxMode;
   sandboxSettings: SandboxSettings;
   maxToolRounds: number;
+  toolsets: string[];
   version: string;
 }
 
@@ -1615,9 +1618,9 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
         return existing;
       }
 
-      const apiKey = getApiKey();
+      const apiKey = getApiKey(startupConfig.provider);
       if (!apiKey) {
-        throw new Error("Grok API key required. Add it in the CLI or set GROK_API_KEY.");
+        throw new Error(`API key required for ${startupConfig.provider}. Add it in the CLI or set the provider env var.`);
       }
 
       const u = loadUserSettings();
@@ -1626,6 +1629,8 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
         session: sid,
         sandboxMode,
         sandboxSettings,
+        provider: startupConfig.provider,
+        toolsets: startupConfig.toolsets,
       });
       if (!sid && a.getSessionId()) {
         saveUserSettings({
@@ -1724,7 +1729,7 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
 
   const startTelegramBridge = useCallback(() => {
     const token = getTelegramBotToken();
-    if (!token || !getApiKey()) return;
+    if (!token || !getApiKey(startupConfig.provider)) return;
     if (bridgeRef.current) return;
 
     const bridge = createTelegramBridge({
@@ -1808,13 +1813,11 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
       setApiKeyError("Enter an API key to continue.");
       return;
     }
-    if (!apiKey.startsWith("xai-")) {
-      setApiKeyError("API keys should start with xai-.");
-      return;
-    }
-
-    saveUserSettings({ apiKey });
-    agent.setApiKey(apiKey);
+    saveUserSettings({
+      ...(startupConfig.provider === "xai" ? { apiKey } : {}),
+      providerApiKeys: { [startupConfig.provider]: apiKey },
+    });
+    agent.setApiKey(apiKey, startupConfig.baseURL, startupConfig.provider);
     hasApiKeyRef.current = true;
     showApiKeyModalRef.current = false;
     setHasApiKey(true);
@@ -1887,8 +1890,8 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
       setTelegramTokenError("Paste your bot token from @BotFather.");
       return;
     }
-    if (!getApiKey()) {
-      setTelegramTokenError("Add a Grok API key first.");
+    if (!getApiKey(startupConfig.provider)) {
+      setTelegramTokenError(`Add an API key for ${startupConfig.provider} first.`);
       return;
     }
     const u = loadUserSettings();
@@ -1942,8 +1945,11 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
 
   const beginTelegramFromConnect = useCallback(() => {
     setShowConnectModal(false);
-    if (!getApiKey()) {
-      setMessages((p) => [...p, { type: "assistant", content: "Add a Grok API key first.", timestamp: new Date() }]);
+    if (!getApiKey(startupConfig.provider)) {
+      setMessages((p) => [
+        ...p,
+        { type: "assistant", content: `Add an API key for ${startupConfig.provider} first.`, timestamp: new Date() },
+      ]);
       openApiKeyModal();
       return;
     }
@@ -3613,6 +3619,7 @@ export function App({ agent, startupConfig, initialMessage, onExit }: AppProps) 
           height={height}
           inputRef={apiKeyInputRef}
           error={apiKeyError}
+          provider={startupConfig.provider}
           onSubmit={submitApiKey}
         />
       )}
@@ -4131,6 +4138,7 @@ function ApiKeyModal({
   height,
   inputRef,
   error,
+  provider,
   onSubmit,
 }: {
   t: Theme;
@@ -4138,6 +4146,7 @@ function ApiKeyModal({
   height: number;
   inputRef: React.RefObject<TextareaRenderable | null>;
   error: string | null;
+  provider: ProviderId;
   onSubmit: () => void;
 }) {
   const overlayBg = "#000000cc" as string;
@@ -4171,14 +4180,14 @@ function ApiKeyModal({
           <text fg={t.textMuted}>{"esc"}</text>
         </box>
         <box paddingLeft={2} paddingRight={2} paddingTop={1}>
-          <text fg={t.text}>{"Paste your xAI API key to unlock chat. You can hide this prompt with esc."}</text>
+          <text fg={t.text}>{`Paste your ${provider} API key to unlock chat. You can hide this prompt with esc.`}</text>
         </box>
         <box paddingLeft={2} paddingRight={2} paddingTop={1}>
           <box backgroundColor={t.backgroundElement} paddingLeft={1} paddingRight={1} width="100%">
             <textarea
               ref={inputRef}
               focused={true}
-              placeholder="xai-..."
+              placeholder="api key"
               textColor={t.text}
               backgroundColor={t.backgroundElement}
               placeholderColor={t.textMuted}

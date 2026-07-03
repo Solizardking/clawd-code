@@ -5,7 +5,14 @@ import readline from "readline";
 import packageJson from "../package.json";
 import { Agent } from "./agent/agent";
 import { completeDelegation, failDelegation, loadDelegation } from "./agent/delegations";
-import { MODELS, normalizeModelId } from "./grok/models";
+import {
+  getProviderDefinition,
+  listProviders,
+  MODELS,
+  normalizeModelId,
+  normalizeProviderId,
+  type ProviderId,
+} from "./grok/models";
 import {
   createHeadlessJsonlEmitter,
   type HeadlessOutputFormat,
@@ -20,10 +27,13 @@ import { runScriptManagedUninstall } from "./utils/install-manager";
 import {
   getApiKey,
   getBaseURL,
+  getCurrentProvider,
   getCurrentSandboxMode,
   getCurrentSandboxSettings,
+  getCurrentToolsets,
   getSolanaConfig,
   mergeSandboxSettings,
+  resolveProviderModelSelection,
   type SandboxMode,
   type SandboxSettings,
   saveUserSettings,
@@ -58,15 +68,24 @@ process.on("unhandledRejection", (reason) => {
 async function startInteractive(
   apiKey: string | undefined,
   baseURL: string,
+  provider: ProviderId,
   model: string | undefined,
   maxToolRounds: number,
   batchApi: boolean,
   sandboxMode: SandboxMode,
   sandboxSettings: SandboxSettings,
+  toolsets: string[],
   session?: string,
   initialMessage?: string,
 ) {
-  const agent = new Agent(apiKey, baseURL, model, maxToolRounds, { session, sandboxMode, sandboxSettings, batchApi });
+  const agent = new Agent(apiKey, baseURL, model, maxToolRounds, {
+    session,
+    sandboxMode,
+    sandboxSettings,
+    batchApi,
+    provider,
+    toolsets,
+  });
   const { createCliRenderer } = await import("@opentui/core");
   const { createRoot } = await import("@opentui/react");
   const { createElement } = await import("react");
@@ -93,10 +112,12 @@ async function startInteractive(
       startupConfig: {
         apiKey,
         baseURL,
+        provider: agent.getProvider(),
         model: agent.getModel(),
         maxToolRounds,
         sandboxMode,
         sandboxSettings,
+        toolsets,
         version: packageJson.version,
       },
       initialMessage,
@@ -109,12 +130,14 @@ async function runHeadless(
   prompt: string,
   apiKey: string,
   baseURL: string,
+  provider: ProviderId,
   model: string | undefined,
   maxToolRounds: number,
   batchApi: boolean,
   sandboxMode: SandboxMode,
   sandboxSettings: SandboxSettings,
   format: HeadlessOutputFormat,
+  toolsets: string[],
   session?: string,
 ) {
   const agent = new Agent(apiKey, baseURL, model, maxToolRounds, {
@@ -122,6 +145,8 @@ async function runHeadless(
     sandboxMode,
     sandboxSettings,
     batchApi,
+    provider,
+    toolsets,
   });
   const prelude = renderHeadlessPrelude(format, agent.getSessionId() || undefined);
   if (prelude.stdout) process.stdout.write(prelude.stdout);
@@ -164,9 +189,9 @@ function changeDirectoryOrExit(directory: string | undefined) {
   }
 }
 
-type CliOptions = Record<string, string | boolean | undefined>;
+type CliOptions = Record<string, string | boolean | string[] | undefined>;
 
-function stringOption(value: string | boolean | undefined): string | undefined {
+function stringOption(value: string | boolean | string[] | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
@@ -174,7 +199,23 @@ function collect(value: string, prev: string[]): string[] {
   return [...prev, value];
 }
 
-function resolveCliSandboxMode(value: string | boolean | undefined): SandboxMode | undefined {
+function stringListOption(value: string | boolean | string[] | undefined): string[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function resolveCliProvider(value: string | boolean | string[] | undefined): ProviderId | undefined {
+  if (typeof value !== "string") return undefined;
+  const provider = normalizeProviderId(value);
+  if (!provider) {
+    const expected = listProviders()
+      .map((item) => item.id)
+      .join(", ");
+    throw new InvalidArgumentError(`Invalid provider "${value}". Expected one of: ${expected}.`);
+  }
+  return provider;
+}
+
+function resolveCliSandboxMode(value: string | boolean | string[] | undefined): SandboxMode | undefined {
   if (value === true) return "shuru";
   if (value === false) return "off";
   return undefined;
@@ -249,23 +290,32 @@ async function runBackgroundDelegation(jobPath: string, options: CliOptions) {
 
   try {
     const delegation = await loadDelegation(jobPath);
-    const apiKey = stringOption(options.apiKey) || getApiKey();
+    const explicitModel = stringOption(options.model) || delegation.model;
+    const selection = resolveProviderModelSelection({
+      provider: resolveCliProvider(options.provider),
+      model: explicitModel,
+    });
+    const apiKey = stringOption(options.apiKey) || getApiKey(selection.provider);
     if (!apiKey) {
-      throw new Error("API key required. Set AI_API_KEY, use --api-key, or save it to ~/.clawd/user-settings.json.");
+      throw new Error(
+        `API key required for ${selection.provider}. Set ${getProviderDefinition(selection.provider).envKey}, use --api-key, or save it to ~/.clawd/user-settings.json.`,
+      );
     }
 
-    const baseURL = stringOption(options.baseUrl) || getBaseURL();
-    const explicitModel = stringOption(options.model) || delegation.model;
-    const model = explicitModel ? normalizeModelId(explicitModel) : undefined;
+    const baseURL = stringOption(options.baseUrl) || getBaseURL(selection.provider);
+    const model = selection.model;
     const maxToolRounds =
       parseInt(stringOption(options.maxToolRounds) || String(delegation.maxToolRounds), 10) || delegation.maxToolRounds;
     const sandboxMode = resolveCliSandboxMode(options.sandbox) || delegation.sandboxMode || getCurrentSandboxMode();
     const sandboxSettings = mergeSandboxSettings(getCurrentSandboxSettings(), delegation.sandboxSettings ?? {});
+    const toolsets = stringListOption(options.toolset).length > 0 ? stringListOption(options.toolset) : getCurrentToolsets();
     agent = new Agent(apiKey, baseURL, model, maxToolRounds, {
       persistSession: false,
       sandboxMode,
       sandboxSettings,
       batchApi: Boolean(delegation.batchApi ?? options.batchApi === true),
+      provider: selection.provider,
+      toolsets,
     });
     const result = await agent.runTaskRequest({
       agent: delegation.agent,
@@ -295,12 +345,20 @@ async function runBackgroundDelegation(jobPath: string, options: CliOptions) {
 }
 
 function resolveConfig(options: CliOptions) {
-  const apiKey = stringOption(options.apiKey) || getApiKey();
-  const baseURL = stringOption(options.baseUrl) || getBaseURL();
   const explicitModel = stringOption(options.model);
-  const model = explicitModel ? normalizeModelId(explicitModel) : undefined;
+  const explicitProvider = resolveCliProvider(options.provider);
+  const selection = resolveProviderModelSelection({
+    provider: explicitProvider ?? getCurrentProvider(explicitModel),
+    model: explicitModel,
+  });
+  const provider = selection.provider;
+  const apiKey = stringOption(options.apiKey) || getApiKey(provider);
+  const baseURL = stringOption(options.baseUrl) || getBaseURL(provider);
+  const model = selection.model;
   const maxToolRounds = parseInt(stringOption(options.maxToolRounds) || "400", 10) || 400;
   const sandboxMode = resolveCliSandboxMode(options.sandbox) || getCurrentSandboxMode();
+  const cliToolsets = stringListOption(options.toolset);
+  const toolsets = cliToolsets.length > 0 ? cliToolsets : getCurrentToolsets();
 
   const cliOverrides: SandboxSettings = {};
   if (options.allowNet === true) cliOverrides.allowNet = true;
@@ -315,17 +373,29 @@ function resolveConfig(options: CliOptions) {
   }
   const sandboxSettings = mergeSandboxSettings(getCurrentSandboxSettings(), cliOverrides);
 
-  if (typeof options.apiKey === "string") saveUserSettings({ apiKey: options.apiKey } as Record<string, unknown>);
-  if (typeof options.model === "string")
-    saveUserSettings({ defaultModel: normalizeModelId(options.model) } as Record<string, unknown>);
+  if (typeof options.apiKey === "string") {
+    saveUserSettings({
+      ...(provider === "xai" ? { apiKey: options.apiKey } : {}),
+      providerApiKeys: { [provider]: options.apiKey },
+    } as Record<string, unknown>);
+  }
+  if (typeof options.baseUrl === "string") {
+    saveUserSettings({
+      ...(provider === "xai" ? { baseURL: options.baseUrl } : {}),
+      providerBaseURLs: { [provider]: options.baseUrl },
+    } as Record<string, unknown>);
+  }
+  if (typeof options.model === "string") saveUserSettings({ defaultModel: normalizeModelId(options.model) });
+  if (typeof options.provider === "string") saveUserSettings({ provider });
+  if (toolsets.length > 0 && cliToolsets.length > 0) saveUserSettings({ toolsets });
 
-  return { apiKey, baseURL, model, maxToolRounds, sandboxMode, sandboxSettings };
+  return { apiKey, baseURL, provider, model, maxToolRounds, sandboxMode, sandboxSettings, toolsets };
 }
 
-function requireApiKey(apiKey: string | undefined): string {
+function requireApiKey(apiKey: string | undefined, provider: ProviderId): string {
   if (!apiKey) {
     console.error(
-      "Error: API key required. Set AI_API_KEY env var, use --api-key, or save to ~/.clawd/user-settings.json",
+      `Error: API key required for ${provider}. Set ${getProviderDefinition(provider).envKey}, use --api-key, or save to ~/.clawd/user-settings.json`,
     );
     process.exit(1);
   }
@@ -348,7 +418,9 @@ program
   .argument("[message...]", "Initial message to send")
   .option("-k, --api-key <key>", "AI API key (OpenAI-compatible)")
   .option("-u, --base-url <url>", "AI API base URL")
+  .option("--provider <provider>", "AI provider: xai, zai, openai, openrouter, deepseek, or custom")
   .option("-m, --model <model>", "AI model to use")
+  .option("--toolset <name>", "Enable an optional toolset such as camsnap (repeatable)", collect, [])
   .option("-d, --directory <dir>", "Working directory", process.cwd())
   .option("-p, --prompt <prompt>", "Run a single prompt headlessly")
   .option("--verify", "Run the built-in verify flow headlessly")
@@ -394,14 +466,16 @@ program
       }
       await runHeadless(
         buildVerifyPrompt(process.cwd()),
-        requireApiKey(config.apiKey),
+        requireApiKey(config.apiKey, config.provider),
         config.baseURL,
+        config.provider,
         config.model,
         config.maxToolRounds,
         options.batchApi === true,
         config.sandboxMode,
         config.sandboxSettings,
         options.format,
+        config.toolsets,
         options.session,
       );
       return;
@@ -410,14 +484,16 @@ program
     if (options.prompt) {
       await runHeadless(
         options.prompt,
-        requireApiKey(config.apiKey),
+        requireApiKey(config.apiKey, config.provider),
         config.baseURL,
+        config.provider,
         config.model,
         config.maxToolRounds,
         options.batchApi === true,
         config.sandboxMode,
         config.sandboxSettings,
         options.format,
+        config.toolsets,
         options.session,
       );
       return;
@@ -428,11 +504,13 @@ program
     await startInteractive(
       config.apiKey,
       config.baseURL,
+      config.provider,
       config.model,
       config.maxToolRounds,
       options.batchApi === true,
       config.sandboxMode,
       config.sandboxSettings,
+      config.toolsets,
       options.session,
       initialMessage,
     );
@@ -445,7 +523,9 @@ program
   .description("Start the Telegram remote-control bridge without opening the TUI")
   .option("-k, --api-key <key>", "AI API key")
   .option("-u, --base-url <url>", "AI API base URL")
+  .option("--provider <provider>", "AI provider: xai, zai, openai, openrouter, deepseek, or custom")
   .option("-m, --model <model>", "AI model to use")
+  .option("--toolset <name>", "Enable an optional toolset such as camsnap (repeatable)", collect, [])
   .option("-d, --directory <dir>", "Working directory", process.cwd())
   .option("--sandbox", "Run agent shell commands inside a Shuru sandbox")
   .option("--no-sandbox", "Run agent shell commands directly on the host")
@@ -458,12 +538,14 @@ program
     process.off("SIGTERM", exitCleanlyOnSigterm);
     try {
       await runTelegramHeadlessBridge({
-        apiKey: requireApiKey(config.apiKey),
+        apiKey: requireApiKey(config.apiKey, config.provider),
         baseURL: config.baseURL,
+        provider: config.provider,
         model: config.model,
         maxToolRounds: config.maxToolRounds,
         sandboxMode: config.sandboxMode,
         sandboxSettings: config.sandboxSettings,
+        toolsets: config.toolsets,
         logFile: options.logFile,
         pairCodeFile: options.pairCodeFile,
       });
@@ -480,7 +562,11 @@ program
   .action(() => {
     console.log("\nAvailable AI Models:\n");
     for (const m of MODELS) {
-      const tags = [m.reasoning ? "reasoning" : "non-reasoning", m.multiAgent ? "multi-agent" : null].filter(Boolean);
+      const tags = [
+        m.provider,
+        m.reasoning ? "reasoning" : "non-reasoning",
+        m.multiAgent ? "multi-agent" : null,
+      ].filter(Boolean);
       const suffix = tags.length > 0 ? ` (${tags.join(", ")})` : "";
       console.log(`  \x1b[36m${m.id}\x1b[0m — ${m.name}${suffix}`);
       console.log(
@@ -491,6 +577,26 @@ program
       }
     }
     console.log();
+  });
+
+// ===== PROVIDERS =====
+
+program
+  .command("providers")
+  .description("List configured AI providers and routing environment variables")
+  .action(() => {
+    console.log("\nAvailable AI Providers:\n");
+    for (const provider of listProviders()) {
+      const apiKey = getApiKey(provider.id);
+      const baseURL = getBaseURL(provider.id);
+      console.log(`  \x1b[36m${provider.id}\x1b[0m — ${provider.name}`);
+      console.log(`    ${provider.description}`);
+      console.log(`    key: ${provider.envKey}${apiKey ? " (set)" : " (not set)"}`);
+      if (provider.envBaseURL) {
+        console.log(`    base: ${provider.envBaseURL}${baseURL ? ` = ${baseURL}` : " (required)"}`);
+      }
+    }
+    console.log("\nUse --provider <id>, CLAWD_PROVIDER, or a model prefix such as openrouter:auto.\n");
   });
 
 // ===== UPDATE =====

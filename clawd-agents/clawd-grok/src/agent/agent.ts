@@ -18,9 +18,10 @@ import {
   generateRecap as genRecap,
   generateTitle as genTitle,
   resolveModelRuntime,
+  resolveResponsesRuntime,
   type XaiProvider,
 } from "../grok/client";
-import { DEFAULT_MODEL, getModelInfo, normalizeModelId } from "../grok/models";
+import { DEFAULT_MODEL, getModelInfo, normalizeModelId, normalizeProviderId, type ProviderId } from "../grok/models";
 import { toolSetToBatchTools } from "../grok/tool-schemas";
 import { createTools } from "../grok/tools";
 import { executeEventHooks } from "../hooks/index";
@@ -72,11 +73,13 @@ import type {
 import { loadCustomInstructions } from "../utils/instructions";
 import {
   type CustomSubagentConfig,
-  getCurrentModel,
+  getApiKey,
+  getBaseURL,
   getModeSpecificModel,
   loadMcpServers,
   loadRecapsEnabled,
   loadValidSubAgents,
+  resolveProviderModelSelection,
   type SandboxMode,
   type SandboxSettings,
 } from "../utils/settings";
@@ -103,12 +106,18 @@ const MAX_TOOL_ROUNDS = 400;
 const VISION_MODEL = "gpt-4o";
 const COMPUTER_MODEL = "gpt-4o";
 
+function normalizeToolsetList(toolsets: string[] | undefined): string[] {
+  return [...new Set((toolsets ?? []).map((toolset) => toolset.trim().toLowerCase()).filter(Boolean))];
+}
+
 interface AgentOptions {
   persistSession?: boolean;
   session?: string;
   sandboxMode?: SandboxMode;
   sandboxSettings?: SandboxSettings;
   batchApi?: boolean;
+  provider?: ProviderId;
+  toolsets?: string[];
 }
 
 type ProcessMessageFinishReason = "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other";
@@ -534,6 +543,7 @@ function applyModelConstraints(system: string, modelId: string): string {
 
 export class Agent {
   private provider: XaiProvider | null = null;
+  private providerId: ProviderId;
   private apiKey: string | null = null;
   private baseURL: string | null = null;
   private bash: BashTool;
@@ -555,6 +565,7 @@ export class Agent {
   private batchApi = false;
   private sessionStartHookFired = false;
   private recapsEnabled = true;
+  private toolsets: string[] = [];
 
   constructor(
     apiKey: string | undefined,
@@ -563,9 +574,14 @@ export class Agent {
     maxToolRounds?: number,
     options: AgentOptions = {},
   ) {
-    this.baseURL = baseURL || null;
+    const initialMode: AgentMode = "agent";
+    const selection = resolveProviderModelSelection({ provider: options.provider, model, mode: initialMode });
+    this.providerId = selection.provider;
+    this.modelId = selection.model;
+    this.baseURL = baseURL || getBaseURL(this.providerId) || null;
+    this.toolsets = normalizeToolsetList(options.toolsets);
     if (apiKey) {
-      this.setApiKey(apiKey, baseURL);
+      this.setApiKey(apiKey, this.baseURL ?? undefined, this.providerId);
     }
     this.bash = new BashTool(process.cwd(), {
       sandboxMode: options.sandboxMode ?? "off",
@@ -573,8 +589,6 @@ export class Agent {
     });
     this.delegations = new DelegationManager(() => this.bash.getCwd());
 
-    const initialMode: AgentMode = "agent";
-    this.modelId = normalizeModelId(model || getCurrentModel(initialMode));
     this.schedules = new ScheduleManager(
       () => this.bash.getCwd(),
       () => this.modelId,
@@ -582,7 +596,7 @@ export class Agent {
     this.maxToolRounds = maxToolRounds || MAX_TOOL_ROUNDS;
     const envMax = Number(process.env.AI_MAX_TOKENS);
     this.maxTokens = Number.isFinite(envMax) && envMax > 0 ? envMax : 16_384;
-    this.batchApi = options.batchApi ?? false;
+    this.batchApi = this.providerId === "xai" ? (options.batchApi ?? false) : false;
     this.recapsEnabled = loadRecapsEnabled();
 
     if (options.persistSession !== false) {
@@ -602,7 +616,11 @@ export class Agent {
   }
 
   setModel(model: string): void {
-    this.modelId = normalizeModelId(model);
+    const selection = resolveProviderModelSelection({ model, mode: this.mode });
+    this.modelId = selection.model;
+    if (selection.provider !== this.providerId) {
+      this.setProvider(selection.provider);
+    }
     if (this.sessionStore && this.session) {
       this.sessionStore.setModel(this.session.id, this.modelId);
       this.session = this.sessionStore.getRequiredSession(this.session.id);
@@ -611,6 +629,14 @@ export class Agent {
 
   getMode(): AgentMode {
     return this.mode;
+  }
+
+  getProvider(): ProviderId {
+    return this.providerId;
+  }
+
+  getToolsets(): string[] {
+    return [...this.toolsets];
   }
 
   getSandboxMode(): SandboxMode {
@@ -634,7 +660,11 @@ export class Agent {
       this.mode = mode;
       const modeModel = getModeSpecificModel(mode);
       if (modeModel) {
-        this.modelId = normalizeModelId(modeModel);
+        const selection = resolveProviderModelSelection({ provider: this.providerId, model: modeModel, mode });
+        this.modelId = selection.model;
+        if (selection.provider !== this.providerId) {
+          this.setProvider(selection.provider);
+        }
       }
       if (this.sessionStore && this.session) {
         this.sessionStore.setMode(this.session.id, mode);
@@ -656,10 +686,30 @@ export class Agent {
     return !!this.apiKey;
   }
 
-  setApiKey(apiKey: string, baseURL = this.baseURL ?? undefined): void {
+  setApiKey(apiKey: string, baseURL = this.baseURL ?? undefined, providerId: ProviderId = this.providerId): void {
     this.apiKey = apiKey;
+    this.providerId = providerId;
     this.baseURL = baseURL || null;
-    this.provider = createProvider(apiKey, baseURL);
+    this.provider = createProvider(apiKey, baseURL, providerId);
+    if (providerId !== "xai") {
+      this.batchApi = false;
+    }
+  }
+
+  setProvider(provider: ProviderId | string, apiKey?: string, baseURL?: string): void {
+    const normalized = normalizeProviderId(provider);
+    if (!normalized) {
+      throw new Error(`Unknown provider "${provider}".`);
+    }
+    this.providerId = normalized;
+    const resolvedBaseURL = baseURL ?? getBaseURL(normalized);
+    const resolvedApiKey = apiKey ?? getApiKey(normalized);
+    this.baseURL = resolvedBaseURL || null;
+    this.apiKey = null;
+    this.provider = null;
+    if (resolvedApiKey) {
+      this.setApiKey(resolvedApiKey, resolvedBaseURL, normalized);
+    }
   }
 
   getCwd(): string {
@@ -957,6 +1007,9 @@ export class Agent {
     if (!this.apiKey) {
       throw new Error("API key required. Add an API key to continue.");
     }
+    if (this.providerId !== "xai") {
+      throw new Error("Batch mode is available only for the native xAI provider.");
+    }
 
     return {
       apiKey: this.apiKey,
@@ -1231,7 +1284,7 @@ export class Agent {
         ? (verifyPreparedSettings ?? { ...this.bash.getSandboxSettings(), ...verifySandboxOverrides })
         : this.bash.getSandboxSettings(),
     });
-    const childBaseTools = createTools(childBash, provider, childMode);
+    const childBaseTools = createTools(childBash, provider, childMode, { toolsets: this.toolsets });
     const initialDetail = isExplore
       ? "Scanning the codebase"
       : isVerifyDetect
@@ -1258,9 +1311,7 @@ export class Agent {
               ? custom.model
               : this.modelId,
     );
-    const childRuntime = isVision
-      ? { ...resolveModelRuntime(provider, childModelId), model: provider.responses(childModelId) }
-      : resolveModelRuntime(provider, childModelId);
+    const childRuntime = isVision ? resolveResponsesRuntime(provider, childModelId) : resolveModelRuntime(provider, childModelId);
     if (isComputer && childRuntime.modelInfo?.supportsClientTools === false) {
       return {
         success: false,
@@ -1619,6 +1670,7 @@ export class Agent {
           subagents,
           sendTelegramFile: this.sendTelegramFile ?? undefined,
           sessionId: this.session?.id ?? undefined,
+          toolsets: this.toolsets,
         });
         let tools: ToolSet = runtime.modelInfo?.supportsClientTools === false ? {} : baseTools;
         if (this.mode === "agent" && runtime.modelInfo?.supportsClientTools !== false) {
@@ -1928,6 +1980,7 @@ export class Agent {
             subagents,
             sendTelegramFile: this.sendTelegramFile ?? undefined,
             sessionId: this.session?.id ?? undefined,
+            toolsets: this.toolsets,
           });
           let tools: ToolSet = runtime.modelInfo?.supportsClientTools === false ? {} : baseTools;
           if (this.mode === "agent" && runtime.modelInfo?.supportsClientTools !== false) {

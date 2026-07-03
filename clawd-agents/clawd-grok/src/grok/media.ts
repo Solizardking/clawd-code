@@ -69,6 +69,12 @@ export async function generateImageTool(
   abortSignal?: AbortSignal,
 ): Promise<ToolResult> {
   try {
+    if (!provider.image) {
+      return failureResult(
+        "Image generation failed",
+        new Error("Image generation requires the native xAI provider."),
+      );
+    }
     const source = input.source ? await resolveImageSource(input.source, cwd, abortSignal) : null;
     const prompt = source ? { text: input.prompt, images: [source.data] } : input.prompt;
     const response = await generateImage({
@@ -127,6 +133,12 @@ export async function generateVideoTool(
   abortSignal?: AbortSignal,
 ): Promise<ToolResult> {
   try {
+    if (!provider.video) {
+      return failureResult(
+        "Video generation failed",
+        new Error("Video generation requires the native xAI provider."),
+      );
+    }
     const source = input.source ? await resolveImageSource(input.source, cwd, abortSignal) : null;
     const prompt = source ? { text: input.prompt, image: source.dataUrl } : input.prompt;
     const response = await generateVideo({

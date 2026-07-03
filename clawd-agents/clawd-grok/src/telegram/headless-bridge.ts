@@ -2,12 +2,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import process from "node:process";
 import { Agent } from "../agent/agent";
+import type { ProviderId } from "../grok/models";
 import {
   getApiKey,
   getBaseURL,
   getCurrentModel,
+  getCurrentProvider,
   getCurrentSandboxMode,
   getCurrentSandboxSettings,
+  getCurrentToolsets,
   getTelegramBotToken,
   loadUserSettings,
   type SandboxMode,
@@ -27,10 +30,12 @@ import { createTurnCoordinator } from "./turn-coordinator";
 export interface TelegramHeadlessBridgeOptions {
   apiKey?: string;
   baseURL?: string;
+  provider?: ProviderId;
   model?: string;
   sandboxMode?: SandboxMode;
   sandboxSettings?: SandboxSettings;
   maxToolRounds?: number;
+  toolsets?: string[];
   logFile?: string;
   pairCodeFile?: string;
 }
@@ -38,10 +43,12 @@ export interface TelegramHeadlessBridgeOptions {
 interface TelegramHeadlessStartupConfig {
   apiKey: string;
   baseURL: string;
+  provider: ProviderId;
   model: string;
   sandboxMode: SandboxMode;
   sandboxSettings: SandboxSettings;
   maxToolRounds: number;
+  toolsets: string[];
 }
 
 function ensureParentDir(filePath: string): void {
@@ -80,7 +87,13 @@ function buildTelegramAgentFactory(startupConfig: TelegramHeadlessStartupConfig)
       startupConfig.baseURL,
       startupConfig.model,
       startupConfig.maxToolRounds,
-      { session: sessionId, sandboxMode: startupConfig.sandboxMode, sandboxSettings: startupConfig.sandboxSettings },
+      {
+        session: sessionId,
+        sandboxMode: startupConfig.sandboxMode,
+        sandboxSettings: startupConfig.sandboxSettings,
+        provider: startupConfig.provider,
+        toolsets: startupConfig.toolsets,
+      },
     );
 
     const nextSessionId = agent.getSessionId();
@@ -120,18 +133,22 @@ export async function runTelegramHeadlessBridge(options: TelegramHeadlessBridgeO
     throw new Error("Missing Telegram bot token in user settings or TELEGRAM_BOT_TOKEN.");
   }
 
-  const apiKey = options.apiKey ?? getApiKey();
+  const model = options.model ?? getCurrentModel();
+  const provider = options.provider ?? getCurrentProvider(model);
+  const apiKey = options.apiKey ?? getApiKey(provider);
   if (!apiKey) {
-    throw new Error("Missing Grok API key.");
+    throw new Error(`Missing API key for provider ${provider}.`);
   }
 
   const startupConfig: TelegramHeadlessStartupConfig = {
     apiKey,
-    baseURL: options.baseURL ?? getBaseURL(),
-    model: options.model ?? getCurrentModel(),
+    baseURL: options.baseURL ?? getBaseURL(provider),
+    provider,
+    model,
     sandboxMode: options.sandboxMode ?? getCurrentSandboxMode(),
     sandboxSettings: options.sandboxSettings ?? getCurrentSandboxSettings(),
     maxToolRounds: options.maxToolRounds ?? 400,
+    toolsets: options.toolsets ?? getCurrentToolsets(),
   };
   const pathOptions: TelegramHeadlessBridgePathOptions = {
     logFile: options.logFile,

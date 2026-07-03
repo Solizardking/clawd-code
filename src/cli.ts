@@ -31,6 +31,12 @@ import {
   OPENROUTER_NEMO_MODEL3,
 } from './openrouter.js';
 import {
+  getImperialConfig,
+  imperialUnderwriterLabel,
+  maskImperialCredential,
+  type ImperialConfig,
+} from './imperial.js';
+import {
   getZaiEnvConfig,
   normalizeZaiReasoningEffort,
   normalizeZaiThinking,
@@ -53,6 +59,10 @@ interface ClawdCodeConfig {
   provider: 'zai' | 'xai' | 'openrouter' | 'deepseek' | 'anthropic';
   liveTrading: boolean;
   operatorConfirmed: boolean;
+  perpsSimOnly: boolean;
+  perpsMaxNotional: number;
+  perpsMaxLeverage: number;
+  imperial: ImperialConfig;
   rpcUrl: string;
   xaiApiKey: string;
   zaiApiKey: string;
@@ -86,6 +96,7 @@ function loadConfig(): ClawdCodeConfig {
   const provider = normalizeProvider(env.CLAWD_PROVIDER || process.env.CLAWD_PROVIDER || DEFAULT_PROVIDER);
   const zai = getZaiEnvConfig(env);
   const configuredModel = env.CLAWD_MODEL || defaultModelForProvider(provider);
+  const imperial = getImperialConfig(env);
   // Default model is the registry default (glm-5.2). Provider-specific fallbacks
   // are applied only when the user explicitly changes CLAWD_PROVIDER.
   return {
@@ -93,6 +104,10 @@ function loadConfig(): ClawdCodeConfig {
     provider,
     liveTrading: env.LIVE_TRADING === 'true',
     operatorConfirmed: env.OPERATOR_CONFIRMED === 'true',
+    perpsSimOnly: env.PERPS_SIM_ONLY !== 'false',
+    perpsMaxNotional: Number(env.PERPS_MAX_NOTIONAL_USD || imperial.maxNotionalUsd || 250),
+    perpsMaxLeverage: Number(env.PERPS_MAX_LEVERAGE || imperial.maxLeverage || 3),
+    imperial,
     rpcUrl: env.SOLANA_RPC_URL || env.HELIUS_RPC_URL || process.env.SOLANA_RPC_URL || DEFAULT_HELIUS_RPC,
     xaiApiKey: env.XAI_API_KEY || process.env.XAI_API_KEY || '',
     zaiApiKey: env.ZAI_API_KEY || process.env.ZAI_API_KEY || '',
@@ -200,6 +215,7 @@ MODES:
   slides     GLM Slide/Poster Agent deck export
   poster     GLM Slide/Poster Agent poster export
   trade      Perpetuals trading with Phoenix Rise + Vulcan MCP
+  imperial   Imperial router status, funding, balances, positions, orders
   research   Deep research with GLM-5.2 thinking mode
   image      Generate images via GLM-Image, DALL-E, or Gemini fallback
   voice      Text-to-speech, sherpa-onnx, or xAI voice agent REPL
@@ -223,6 +239,7 @@ COMMANDS:
   clawd-code slides "weekly Solana market report" --pages 6
   clawd-code poster "launch poster for a new charting model"
   clawd-code trade "SOL funding rate?"
+  clawd-code imperial status
   clawd-code research "AI agent frameworks 2025"
   clawd-code image "cyberpunk Solana trading desk"
   clawd-code voice "Hello from Clawd Code"
@@ -289,6 +306,13 @@ ENVIRONMENT:
   VULCAN_MCP_URL         Vulcan MCP server URL
   LIVE_TRADING           Enable live trading (true|false)
   OPERATOR_CONFIRMED     Operator confirmed (true|false)
+  PERPS_SIM_ONLY         Keep perps simulated unless explicitly false
+  IMPERIAL_ENABLED       Enable Imperial API reads/routing (true|false)
+  IMPERIAL_LIVE          Enable Imperial live order path after global gates
+  IMPERIAL_WALLET        Wallet pubkey that owns Imperial JWT/profile
+  IMPERIAL_JWT           Imperial mobile JWT (secret trading credential)
+  IMPERIAL_PROFILE_INDEX Profile 0..5; default convention is 0
+  IMPERIAL_DEFAULT_UNDERWRITER Phoenix default: 2
   CLAWD_MODE             Default mode (code|chain|chart|trade|research|image|voice|repl)
   CLAWD_AGENT_COUNT      Agent count for research (4|16)
 
@@ -343,6 +367,8 @@ async function cmdInspect(): Promise<void> {
   console.log(`║    anthropic   ${maskSecret(env.ANTHROPIC_API_KEY).padEnd(58)}║`);
   console.log(`║    deepseek    ${maskSecret(env.DEEPSEEK_API_KEY).padEnd(58)}║`);
   console.log(`║    openrouter  ${maskSecret(env.OPENROUTER_API_KEY).padEnd(58)}║`);
+  const imperial = getImperialConfig(env);
+  console.log(`║    imperial    ${maskImperialCredential(imperial.jwt).padEnd(58)}║`);
   console.log(`║    OR route 1  ${fit(openRouterModels.model1, 58)}║`);
   console.log(`║    OR route 2  ${fit(openRouterModels.model2, 58)}║`);
   console.log(`║    OR route 3  ${fit(openRouterModels.model3, 58)}║`);
@@ -355,6 +381,8 @@ async function cmdInspect(): Promise<void> {
   console.log(`║    ZAI image   ${fit(zai.imageModel, 58)}║`);
   console.log(`║    ZAI agent   ${fit(zai.agentBaseUrl, 58)}║`);
   console.log(`║    ZAI think   ${fit(`${zai.thinkingType} / ${zai.reasoningEffort}`, 58)}║`);
+  console.log(`║    Imperial    ${fit(`${imperial.enabled ? 'enabled' : 'disabled'} / ${imperial.live ? 'live requested' : 'read/paper'} / ${imperialUnderwriterLabel(imperial.defaultUnderwriter)}`, 58)}║`);
+  console.log(`║    Imp wallet  ${fit(imperial.wallet ? `${imperial.wallet.slice(0, 8)}...${imperial.wallet.slice(-4)}` : '(unset)', 58)}║`);
 
   // 4. xAI live ping
   const xai = createXaiClient(env.XAI_API_KEY);
@@ -536,6 +564,8 @@ async function main(): Promise<void> {
     'signals':     C.cmdSignals,
     '/strategies': C.cmdStrategies,
     'strategies':  C.cmdStrategies,
+    '/imperial':   C.cmdImperial,
+    'imperial':    C.cmdImperial,
     '/arena':      C.cmdArena,
     'arena':       C.cmdArena,
     '/agents':     C.cmdAgents,

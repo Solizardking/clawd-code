@@ -8,18 +8,53 @@ import { spawn } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { extname } from 'path';
 import { DEFAULT_MODEL, DEFAULT_TRADE_VISION_MODEL } from '../grok-models.js';
+import {
+  ImperialClient,
+  ImperialOrderSide,
+  buildImperialMarketOrder,
+  extractImperialMarkPrice,
+  getImperialConfig,
+  getImperialLiveReadiness,
+  getTradingGateState,
+  imperialUnderwriterLabel,
+  maskImperialCredential,
+  validateImperialOrderIntent,
+  type ImperialConfig,
+  type TradingGateState,
+} from '../imperial.js';
 import { createZaiClient, ZAI_TRADE_VISION_MODEL } from '../zai.js';
 
 export class TradeMode {
   constructor(private config: any) {}
 
+  private imperialConfig(): ImperialConfig {
+    return this.config.imperial ?? getImperialConfig(process.env);
+  }
+
+  private gateState(): TradingGateState {
+    if (
+      typeof this.config.liveTrading === 'boolean' ||
+      typeof this.config.operatorConfirmed === 'boolean' ||
+      typeof this.config.perpsSimOnly === 'boolean'
+    ) {
+      return {
+        liveTrading: this.config.liveTrading === true,
+        operatorConfirmed: this.config.operatorConfirmed === true,
+        perpsSimOnly: this.config.perpsSimOnly !== false,
+      };
+    }
+    return getTradingGateState(process.env);
+  }
+
   async run(args: string[]): Promise<void> {
     const command = this.commandText(args);
+    const imperial = this.imperialConfig();
 
     console.log('\n[TRADE MODE] Entering perpetuals trading mode...\n');
     console.log(`[TRADE MODE] RPC: ${this.config.rpcUrl}`);
     console.log(`[TRADE MODE] Live Trading: ${this.config.liveTrading}`);
     console.log(`[TRADE MODE] Operator Confirmed: ${this.config.operatorConfirmed}`);
+    console.log(`[TRADE MODE] Imperial: ${imperial.enabled ? 'enabled' : 'disabled'} (${imperialUnderwriterLabel(imperial.defaultUnderwriter)}, profile ${imperial.profileIndex})`);
     const analysisModel = this.config.model ?? DEFAULT_MODEL;
     const visionModel = this.config.zaiTradeVisionModel ?? DEFAULT_TRADE_VISION_MODEL;
     console.log(`[TRADE MODE] AI analysis model (Z.AI default): ${analysisModel}`);
@@ -50,6 +85,11 @@ export class TradeMode {
       await this.analyzeChart(command, chartInput);
       return;
     }
+
+    if (action.includes('imperial')) {
+      await this.handleImperial(command, args);
+      return;
+    }
     
     if (action.includes('funding') || action.includes('rate')) {
       await this.fetchFundingRates();
@@ -58,9 +98,9 @@ export class TradeMode {
     } else if (action.includes('orderbook') || action.includes('depth')) {
       await this.fetchOrderbook(command);
     } else if (action.includes('short')) {
-      await this.executeShort(command);
+      await this.executeShort(command, args);
     } else if (action.includes('long')) {
-      await this.executeLong(command);
+      await this.executeLong(command, args);
     } else if (action.includes('scan') || action.includes('signal')) {
       await this.scanMarkets();
     } else if (action.includes('position') || action.includes('portfolio')) {
@@ -181,6 +221,136 @@ export class TradeMode {
       default:
         return 'image/png';
     }
+  }
+
+  private async handleImperial(command: string, args: string[]): Promise<void> {
+    const action = command.toLowerCase();
+    if (action.includes('funding') || action.includes('rate')) {
+      if (!(await this.fetchFundingRatesViaImperial())) await this.fetchFundingRates();
+      return;
+    }
+    if (action.includes('balance') || action.includes('margin')) {
+      await this.showImperialBalances();
+      return;
+    }
+    if (action.includes('order')) {
+      await this.showImperialOrders();
+      return;
+    }
+    if (action.includes('position') || action.includes('portfolio')) {
+      await this.showImperialPositions();
+      return;
+    }
+    if (action.includes('short')) {
+      await this.executeImperialMarketOrder(command, args, ImperialOrderSide.Short);
+      return;
+    }
+    if (action.includes('long')) {
+      await this.executeImperialMarketOrder(command, args, ImperialOrderSide.Long);
+      return;
+    }
+    await this.showImperialStatus();
+  }
+
+  private async showImperialStatus(): Promise<void> {
+    const imperial = this.imperialConfig();
+    const readiness = getImperialLiveReadiness(imperial, this.gateState());
+    console.log('\n╔════════════════════════════════════════════════════╗');
+    console.log('║  IMPERIAL ROUTER STATUS                            ║');
+    console.log('╠════════════════════════════════════════════════════╣');
+    console.log(`║  Enabled:     ${String(imperial.enabled).padEnd(36)}║`);
+    console.log(`║  Live path:   ${String(imperial.live).padEnd(36)}║`);
+    console.log(`║  API:         ${imperial.apiBaseUrl.slice(0, 36).padEnd(36)}║`);
+    console.log(`║  Wallet:      ${(imperial.wallet ? `${imperial.wallet.slice(0, 8)}...${imperial.wallet.slice(-4)}` : '(unset)').padEnd(36)}║`);
+    console.log(`║  JWT:         ${maskImperialCredential(imperial.jwt).padEnd(36)}║`);
+    console.log(`║  Profile:     ${String(imperial.profileIndex).padEnd(36)}║`);
+    console.log(`║  Underwriter: ${imperialUnderwriterLabel(imperial.defaultUnderwriter).padEnd(36)}║`);
+    console.log(`║  Symbols:     ${imperial.allowedSymbols.join(', ').slice(0, 36).padEnd(36)}║`);
+    console.log(`║  Max size:    ${`$${imperial.maxNotionalUsd} / ${imperial.maxLeverage}x`.padEnd(36)}║`);
+    console.log('╠════════════════════════════════════════════════════╣');
+    console.log(`║  Live ready:  ${String(readiness.ok).padEnd(36)}║`);
+    console.log('╚════════════════════════════════════════════════════╝');
+    if (!readiness.ok) {
+      console.log('\n[IMPERIAL] Live readiness blockers:');
+      for (const reason of readiness.reasons) console.log(`  - ${reason}`);
+    }
+    console.log('\n[IMPERIAL] Commands: imperial funding | imperial balances | imperial positions | imperial orders');
+  }
+
+  private imperialClient(): ImperialClient {
+    return new ImperialClient(this.imperialConfig());
+  }
+
+  private async fetchFundingRatesViaImperial(): Promise<boolean> {
+    const imperial = this.imperialConfig();
+    if (!imperial.enabled) return false;
+    try {
+      const data = await this.imperialClient().getFundingRates();
+      console.log('\n╔════════════════════════════════════════════════════╗');
+      console.log('║  IMPERIAL — FUNDING RATES                          ║');
+      console.log('╚════════════════════════════════════════════════════╝');
+      this.printJsonPreview(data);
+      return true;
+    } catch (error) {
+      console.log(`\n[IMPERIAL] Funding rates unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
+
+  private async showImperialBalances(): Promise<void> {
+    const imperial = this.imperialConfig();
+    if (!imperial.wallet || !imperial.jwt) {
+      console.log('\n[IMPERIAL] Balances require IMPERIAL_WALLET and IMPERIAL_JWT/IMPERIAL_API_KEY.');
+      return;
+    }
+    try {
+      const data = await this.imperialClient().getBalances();
+      console.log('\n╔════════════════════════════════════════════════════╗');
+      console.log(`║  IMPERIAL — BALANCES (profile ${imperial.profileIndex})                 ║`);
+      console.log('╚════════════════════════════════════════════════════╝');
+      this.printJsonPreview(data);
+    } catch (error) {
+      console.log(`[IMPERIAL] Balances unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async showImperialPositions(): Promise<void> {
+    const imperial = this.imperialConfig();
+    if (!imperial.wallet) {
+      console.log('\n[IMPERIAL] Positions require IMPERIAL_WALLET.');
+      return;
+    }
+    try {
+      const data = await this.imperialClient().getPositions();
+      console.log('\n╔════════════════════════════════════════════════════╗');
+      console.log('║  IMPERIAL — POSITIONS                              ║');
+      console.log('╚════════════════════════════════════════════════════╝');
+      this.printJsonPreview(data);
+    } catch (error) {
+      console.log(`[IMPERIAL] Positions unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async showImperialOrders(): Promise<void> {
+    const imperial = this.imperialConfig();
+    if (!imperial.wallet) {
+      console.log('\n[IMPERIAL] Orders require IMPERIAL_WALLET.');
+      return;
+    }
+    try {
+      const data = await this.imperialClient().getOrders();
+      console.log('\n╔════════════════════════════════════════════════════╗');
+      console.log('║  IMPERIAL — ORDERS                                 ║');
+      console.log('╚════════════════════════════════════════════════════╝');
+      this.printJsonPreview(data);
+    } catch (error) {
+      console.log(`[IMPERIAL] Orders unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private printJsonPreview(data: unknown): void {
+    const text = JSON.stringify(data, null, 2);
+    console.log(text.length > 6000 ? `${text.slice(0, 6000)}\n...` : text);
   }
 
   private getVulcanCommand(): string {
@@ -393,7 +563,122 @@ except Exception as e:
     }
   }
 
-  private async executeShort(command: string): Promise<void> {
+  private shouldUseImperialExecution(command: string): boolean {
+    const imperial = this.imperialConfig();
+    return command.toLowerCase().includes('imperial') || imperial.live;
+  }
+
+  private parseTradeSymbol(command: string, imperial: ImperialConfig): string {
+    const upper = command.toUpperCase();
+    for (const symbol of imperial.allowedSymbols) {
+      if (new RegExp(`\\b${symbol}\\b`, 'i').test(upper)) return symbol;
+    }
+    const match = upper.match(/\b(SOL|ETH|BTC|ARB|XAU|GOLD|BONK|JUP)\b/);
+    return match?.[1] ?? 'SOL';
+  }
+
+  private parseNotionalUsd(command: string): number {
+    const dollar = command.match(/\$\s*(\d+(?:\.\d+)?)/);
+    if (dollar) return Number(dollar[1]);
+    const usd = command.match(/\b(\d+(?:\.\d+)?)\s*(?:USDC|USD|DOLLARS?)\b/i);
+    if (usd) return Number(usd[1]);
+    return 100;
+  }
+
+  private parseLeverage(command: string, imperial: ImperialConfig): number {
+    const leverage = command.match(/\b(\d+(?:\.\d+)?)\s*(?:x|×)\b/i);
+    if (!leverage) return Math.min(2, imperial.maxLeverage);
+    return Number(leverage[1]);
+  }
+
+  private parseNumericArg(args: string[], ...flags: string[]): number | undefined {
+    for (const flag of flags) {
+      const value = this.argValue(args, flag);
+      if (!value) continue;
+      const parsed = Number(value);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return undefined;
+  }
+
+  private async resolveImperialMarketPrice(args: string[], symbol: string, imperial: ImperialConfig): Promise<number | undefined> {
+    const explicit = this.parseNumericArg(args, '--market-price', '--price');
+    if (explicit) return explicit;
+    try {
+      const payload = await this.imperialClient().getMarkPrices();
+      return extractImperialMarkPrice(payload, symbol, imperial.defaultUnderwriter);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async executeImperialMarketOrder(command: string, args: string[], side: ImperialOrderSide): Promise<void> {
+    const imperial = this.imperialConfig();
+    const gates = this.gateState();
+    const symbol = this.parseTradeSymbol(command, imperial);
+    const notionalUsd = this.parseNotionalUsd(command);
+    const leverage = this.parseLeverage(command, imperial);
+    const intentIssues = validateImperialOrderIntent({ config: imperial, symbol, notionalUsd, leverage });
+    const readiness = getImperialLiveReadiness(imperial, gates);
+
+    console.log('\n[IMPERIAL] Market order preflight');
+    console.log(`  Side: ${side === ImperialOrderSide.Long ? 'LONG' : 'SHORT'} ${symbol}`);
+    console.log(`  Notional: $${notionalUsd}`);
+    console.log(`  Leverage: ${leverage}x`);
+    console.log(`  Venue: ${imperialUnderwriterLabel(imperial.defaultUnderwriter)}`);
+    console.log(`  Wallet: ${imperial.wallet ? `${imperial.wallet.slice(0, 8)}...${imperial.wallet.slice(-4)}` : '(unset)'}`);
+    console.log(`  Profile: ${imperial.profileIndex}`);
+
+    if (intentIssues.length) {
+      console.log('\n[IMPERIAL] Order blocked by local risk rules:');
+      for (const issue of intentIssues) console.log(`  - ${issue}`);
+      return;
+    }
+
+    if (!readiness.ok) {
+      console.log('\n[IMPERIAL] PAPER DRAFT ONLY — live route is not armed.');
+      for (const reason of readiness.reasons) console.log(`  - ${reason}`);
+      console.log('\n[IMPERIAL] To arm live Imperial execution, set LIVE_TRADING=true, OPERATOR_CONFIRMED=true, PERPS_SIM_ONLY=false, IMPERIAL_LIVE=true, IMPERIAL_WALLET, IMPERIAL_JWT, and IMPERIAL_PROFILE_INDEX.');
+      return;
+    }
+
+    const marketPriceUsd = await this.resolveImperialMarketPrice(args, symbol, imperial);
+    if (!marketPriceUsd && imperial.defaultUnderwriter !== 4) {
+      console.log('\n[IMPERIAL] Live order blocked: no mark price available for marketPrice slippage encoding.');
+      console.log('[IMPERIAL] Pass --market-price <usd> or retry when /mark-prices is reachable.');
+      return;
+    }
+
+    const order = buildImperialMarketOrder({
+      config: imperial,
+      symbol,
+      side,
+      notionalUsd,
+      leverage,
+      marketPriceUsd: marketPriceUsd ?? 0,
+    });
+
+    try {
+      const response = await this.imperialClient().submitOrder(order);
+      if (response.success === true) {
+        console.log('\n[IMPERIAL] Order accepted.');
+        if (response.signature) console.log(`  Signature: ${response.signature}`);
+        if (response.orderPda) console.log(`  Order PDA: ${response.orderPda}`);
+      } else {
+        console.log('\n[IMPERIAL] Order rejected by Imperial/order bot.');
+        console.log(`  Error: ${response.error ?? 'unknown rejection'}`);
+      }
+    } catch (error) {
+      console.log(`\n[IMPERIAL] Order submission failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async executeShort(command: string, args: string[]): Promise<void> {
+    if (this.shouldUseImperialExecution(command)) {
+      await this.executeImperialMarketOrder(command, args, ImperialOrderSide.Short);
+      return;
+    }
+
     console.log('\n[TRADE MODE] Analyzing SHORT order...');
     
     const notionalMatch = command.match(/\$?(\d+)/);
@@ -409,7 +694,8 @@ except Exception as e:
     console.log('  ✓ Leverage 2× ≤ 3× cap');
     console.log('  ✓ Spread 6 bps ≤ 40 bps cap');
     
-    if (this.config.liveTrading && this.config.operatorConfirmed) {
+    const gates = this.gateState();
+    if (gates.liveTrading && gates.operatorConfirmed && !gates.perpsSimOnly) {
       console.log('\n[TRADE MODE] 🚀 LIVE MODE — Submitting SHORT via Vulcan CLI...');
       
       const result = await this.runVulcanCommand('trade', [
@@ -433,14 +719,20 @@ except Exception as e:
     }
   }
 
-  private async executeLong(command: string): Promise<void> {
+  private async executeLong(command: string, args: string[]): Promise<void> {
+    if (this.shouldUseImperialExecution(command)) {
+      await this.executeImperialMarketOrder(command, args, ImperialOrderSide.Long);
+      return;
+    }
+
     const notionalMatch = command.match(/\$?(\d+)/);
     const notional = notionalMatch ? parseInt(notionalMatch[1]) : 100;
     
     console.log('\n[TRADE MODE] Analyzing LONG order...');
     console.log('  ✓ SOL in allowlist ✓ | $' + notional + ' ✓ | 2× ✓');
     
-    if (this.config.liveTrading && this.config.operatorConfirmed) {
+    const gates = this.gateState();
+    if (gates.liveTrading && gates.operatorConfirmed && !gates.perpsSimOnly) {
       const result = await this.runVulcanCommand('trade', [
         'market-buy', 'SOL', '--notional-usdc', notional.toString()
       ]);
