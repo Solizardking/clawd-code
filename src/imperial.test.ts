@@ -1,8 +1,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ImperialClient,
   ImperialOrderSide,
   ImperialUnderwriter,
+  buildImperialConnectMessage,
   buildImperialMarketOrder,
   encodeImperialMarketPrice,
   extractImperialMarkPrice,
@@ -95,5 +97,53 @@ describe('Imperial price and order encoding', () => {
       ],
     };
     assert.equal(extractImperialMarkPrice(payload, 'SOL', ImperialUnderwriter.Phoenix), 64.94);
+  });
+});
+
+describe('Imperial auth client', () => {
+  test('builds the documented mobile connect message', () => {
+    assert.equal(
+      buildImperialConnectMessage('wallet-pubkey', 'nonce-1'),
+      'imperial:mobile-connect:wallet-pubkey:nonce-1',
+    );
+  });
+
+  test('posts mobile connect and exchange requests without auth header', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = async (url: string, init?: RequestInit): Promise<Response> => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify(calls.length === 1 ? { code: 'one-time-code' } : { jwt: 'jwt-value' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    const client = new ImperialClient(getImperialConfig({ IMPERIAL_API_BASE_URL: 'https://imperial.test/api/v1' }), fetchImpl);
+
+    const connect = await client.connectMobile({ wallet: 'wallet', message: 'message', signature: 'signature' });
+    const exchange = await client.exchangeMobileCode(connect.code ?? '');
+
+    assert.equal(exchange.jwt, 'jwt-value');
+    assert.equal(calls[0].url, 'https://imperial.test/api/v1/mobile/connect');
+    assert.equal(calls[1].url, 'https://imperial.test/api/v1/mobile/exchange');
+    assert.equal((calls[0].init?.headers as Record<string, string>).Authorization, undefined);
+  });
+
+  test('revoke uses bearer auth but never needs the raw JWT in output', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = async (url: string, init?: RequestInit): Promise<Response> => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    };
+    const client = new ImperialClient(getImperialConfig({
+      IMPERIAL_API_BASE_URL: 'https://imperial.test/api/v1',
+      IMPERIAL_WALLET: 'wallet',
+      IMPERIAL_JWT: 'jwt-value',
+    }), fetchImpl);
+
+    await client.revokeMobileSession();
+
+    assert.equal(calls[0].url, 'https://imperial.test/api/v1/mobile/revoke');
+    assert.equal((calls[0].init?.headers as Record<string, string>).Authorization, 'Bearer jwt-value');
+    assert.equal(calls[0].init?.body, JSON.stringify({ wallet: 'wallet' }));
   });
 });

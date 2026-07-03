@@ -84,6 +84,24 @@ export interface ImperialOrderResponse {
   [key: string]: unknown;
 }
 
+export interface ImperialMobileConnectRequest {
+  wallet: string;
+  message: string;
+  signature: string;
+}
+
+export interface ImperialMobileConnectResponse {
+  code?: string;
+  [key: string]: unknown;
+}
+
+export interface ImperialMobileExchangeResponse {
+  jwt?: string;
+  expires_at?: string;
+  expiresAt?: string;
+  [key: string]: unknown;
+}
+
 type EnvLike = Record<string, string | undefined>;
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -231,6 +249,10 @@ export function buildImperialMarketOrder(params: {
   };
 }
 
+export function buildImperialConnectMessage(wallet: string, nonce: string): string {
+  return `imperial:mobile-connect:${wallet}:${nonce}`;
+}
+
 export function validateImperialOrderIntent(params: {
   config: ImperialConfig;
   symbol: string;
@@ -329,6 +351,27 @@ export class ImperialClient {
     return this.request<ImperialOrderResponse>('/mobile/orders', {
       method: 'POST',
       body: JSON.stringify(order),
+    }, true);
+  }
+
+  async connectMobile(request: ImperialMobileConnectRequest): Promise<ImperialMobileConnectResponse> {
+    return this.request<ImperialMobileConnectResponse>('/mobile/connect', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async exchangeMobileCode(code: string): Promise<ImperialMobileExchangeResponse> {
+    return this.request<ImperialMobileExchangeResponse>('/mobile/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async revokeMobileSession(): Promise<unknown> {
+    return this.request('/mobile/revoke', {
+      method: 'POST',
+      body: JSON.stringify({ wallet: this.config.wallet }),
     }, true);
   }
 
