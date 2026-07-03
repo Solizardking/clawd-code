@@ -215,7 +215,7 @@ MODES:
   slides     GLM Slide/Poster Agent deck export
   poster     GLM Slide/Poster Agent poster export
   trade      Perpetuals trading with Phoenix Rise + Vulcan MCP
-  imperial   Imperial router status, funding, balances, positions, orders
+  imperial   Imperial router status, auth, funding, balances, positions, orders
   research   Deep research with GLM-5.2 thinking mode
   image      Generate images via GLM-Image, DALL-E, or Gemini fallback
   voice      Text-to-speech, sherpa-onnx, or xAI voice agent REPL
@@ -240,6 +240,7 @@ COMMANDS:
   clawd-code poster "launch poster for a new charting model"
   clawd-code trade "SOL funding rate?"
   clawd-code imperial status
+  clawd-code imperial auth imperial --arm-live
   clawd-code research "AI agent frameworks 2025"
   clawd-code image "cyberpunk Solana trading desk"
   clawd-code voice "Hello from Clawd Code"

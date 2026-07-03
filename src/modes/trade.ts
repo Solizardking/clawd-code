@@ -5,12 +5,15 @@
  */
 
 import { spawn } from 'child_process';
+import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { extname } from 'path';
+import { upsertClawdEnv } from '../env.js';
 import { DEFAULT_MODEL, DEFAULT_TRADE_VISION_MODEL } from '../grok-models.js';
 import {
   ImperialClient,
   ImperialOrderSide,
+  buildImperialConnectMessage,
   buildImperialMarketOrder,
   extractImperialMarkPrice,
   getImperialConfig,
@@ -22,6 +25,7 @@ import {
   type ImperialConfig,
   type TradingGateState,
 } from '../imperial.js';
+import { loadWalletKeypair, signWalletMessage } from '../wallet.js';
 import { createZaiClient, ZAI_TRADE_VISION_MODEL } from '../zai.js';
 
 export class TradeMode {
@@ -118,7 +122,20 @@ export class TradeMode {
   }
 
   private commandText(args: string[]): string {
-    const valueFlags = new Set(['--chart', '--image', '--screenshot', '--model', '--size']);
+    const valueFlags = new Set([
+      '--chart',
+      '--image',
+      '--screenshot',
+      '--model',
+      '--size',
+      '--wallet',
+      '--wallet-name',
+      '--profile',
+      '--profile-index',
+      '--market-price',
+      '--price',
+      '--nonce',
+    ]);
     const parts: string[] = [];
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
@@ -230,6 +247,14 @@ export class TradeMode {
 
   private async handleImperial(command: string, args: string[]): Promise<void> {
     const action = command.toLowerCase();
+    if (action.includes('revoke')) {
+      await this.revokeImperialSession();
+      return;
+    }
+    if (action.includes('auth') || action.includes('connect') || action.includes('session')) {
+      await this.createImperialSession(args);
+      return;
+    }
     if (action.includes('funding') || action.includes('rate')) {
       if (!(await this.fetchFundingRatesViaImperial())) await this.fetchFundingRates();
       return;
@@ -280,6 +305,7 @@ export class TradeMode {
       for (const reason of readiness.reasons) console.log(`  - ${reason}`);
     }
     console.log('\n[IMPERIAL] Commands: imperial funding | imperial balances | imperial positions | imperial orders');
+    console.log('[IMPERIAL] Auth:     imperial auth [wallet-name] --write-env --arm-live');
   }
 
   private imperialClient(): ImperialClient {
@@ -356,6 +382,107 @@ export class TradeMode {
   private printJsonPreview(data: unknown): void {
     const text = JSON.stringify(data, null, 2);
     console.log(text.length > 6000 ? `${text.slice(0, 6000)}\n...` : text);
+  }
+
+  private positionalAfter(args: string[], markers: string[]): string | undefined {
+    const markerIndex = args.findIndex((arg) => markers.includes(arg.toLowerCase()));
+    if (markerIndex === -1) return undefined;
+    const candidate = args[markerIndex + 1];
+    return candidate && !candidate.startsWith('--') ? candidate : undefined;
+  }
+
+  private boolFlag(args: string[], flag: string): boolean {
+    return args.includes(flag);
+  }
+
+  private async createImperialSession(args: string[]): Promise<void> {
+    const walletName =
+      this.argValue(args, '--wallet') ||
+      this.argValue(args, '--wallet-name') ||
+      this.positionalAfter(args, ['auth', 'connect', 'session']) ||
+      'default';
+    const nonce = this.argValue(args, '--nonce') || randomBytes(16).toString('hex');
+    const current = this.imperialConfig();
+    const profileIndex = Number(this.argValue(args, '--profile') ?? this.argValue(args, '--profile-index') ?? current.profileIndex);
+    const writeEnv = this.boolFlag(args, '--write-env') || this.boolFlag(args, '--arm-live');
+    const armLive = this.boolFlag(args, '--arm-live');
+
+    if (!Number.isInteger(profileIndex) || profileIndex < 0 || profileIndex > 5) {
+      console.log('\n[IMPERIAL] Auth blocked: profile index must be an integer between 0 and 5.');
+      return;
+    }
+
+    let signed: { wallet: string; message: string; signature: string };
+    try {
+      const local = loadWalletKeypair(walletName);
+      signed = signWalletMessage(walletName, buildImperialConnectMessage(local.publicKey, nonce));
+    } catch (error) {
+      console.log(`\n[IMPERIAL] Unable to sign with local wallet "${walletName}": ${error instanceof Error ? error.message : String(error)}`);
+      console.log('[IMPERIAL] Create one first: clawd-code wallet create imperial');
+      return;
+    }
+
+    const client = new ImperialClient({ ...current, wallet: signed.wallet });
+    try {
+      console.log(`\n[IMPERIAL] Requesting mobile session for wallet ${signed.wallet.slice(0, 8)}...${signed.wallet.slice(-4)} profile ${profileIndex}`);
+      const connect = await client.connectMobile(signed);
+      const code = typeof connect.code === 'string' ? connect.code : '';
+      if (!code) {
+        console.log('[IMPERIAL] Connect response did not include a one-time code.');
+        this.printJsonPreview(connect);
+        return;
+      }
+
+      const exchanged = await client.exchangeMobileCode(code);
+      const jwt = typeof exchanged.jwt === 'string' ? exchanged.jwt : '';
+      if (!jwt) {
+        console.log('[IMPERIAL] Exchange response did not include a JWT.');
+        this.printJsonPreview({ ...exchanged, jwt: exchanged.jwt ? maskImperialCredential(String(exchanged.jwt)) : exchanged.jwt });
+        return;
+      }
+
+      console.log('[IMPERIAL] Mobile JWT acquired.');
+      console.log(`  JWT: ${maskImperialCredential(jwt)}`);
+      if (exchanged.expires_at || exchanged.expiresAt) {
+        console.log(`  Expires: ${exchanged.expires_at ?? exchanged.expiresAt}`);
+      }
+
+      if (writeEnv) {
+        const values: Record<string, string> = {
+          IMPERIAL_ENABLED: 'true',
+          IMPERIAL_WALLET: signed.wallet,
+          IMPERIAL_JWT: jwt,
+          IMPERIAL_PROFILE_INDEX: String(profileIndex),
+          IMPERIAL_DEFAULT_UNDERWRITER: String(current.defaultUnderwriter),
+        };
+        if (armLive) {
+          values.LIVE_TRADING = 'true';
+          values.OPERATOR_CONFIRMED = 'true';
+          values.PERPS_SIM_ONLY = 'false';
+          values.IMPERIAL_LIVE = 'true';
+        }
+        upsertClawdEnv(values);
+        console.log('[IMPERIAL] Updated ~/.clawd-code/.env with masked session settings.');
+      } else {
+        console.log('[IMPERIAL] Session not persisted. Re-run with --write-env, or --arm-live to persist live gates too.');
+      }
+    } catch (error) {
+      console.log(`[IMPERIAL] Auth failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async revokeImperialSession(): Promise<void> {
+    const imperial = this.imperialConfig();
+    if (!imperial.wallet || !imperial.jwt) {
+      console.log('\n[IMPERIAL] Revoke requires IMPERIAL_WALLET and IMPERIAL_JWT/IMPERIAL_API_KEY.');
+      return;
+    }
+    try {
+      await this.imperialClient().revokeMobileSession();
+      console.log('\n[IMPERIAL] Mobile JWT revoked for configured wallet.');
+    } catch (error) {
+      console.log(`[IMPERIAL] Revoke failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private getVulcanCommand(): string {

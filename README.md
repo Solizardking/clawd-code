@@ -428,10 +428,13 @@ Useful Imperial commands:
 
 ```bash
 clawd-code imperial status
+clawd-code imperial auth imperial --write-env
+clawd-code imperial auth imperial --arm-live
 clawd-code imperial funding
 clawd-code imperial balances
 clawd-code imperial positions
 clawd-code trade "imperial short SOL $100" --market-price 64.94
+clawd-code imperial revoke
 ```
 
 `IMPERIAL_JWT` is equivalent to delegated trading access for that wallet's
@@ -439,6 +442,14 @@ profiles. Never commit it, log it, or share it outside the operator boundary.
 The trade mode also applies local preflight constraints such as allowed symbols,
 maximum notional, maximum leverage, and market-price scaling before any live
 Imperial submission.
+
+`imperial auth <wallet-name>` signs the documented
+`imperial:mobile-connect:{wallet}:{nonce}` message with a local
+`~/.clawd-code/wallets/<wallet-name>.json` keypair, exchanges the one-time code
+for a mobile JWT, and prints only a masked token. `--write-env` persists
+`IMPERIAL_ENABLED`, `IMPERIAL_WALLET`, `IMPERIAL_JWT`, and
+`IMPERIAL_PROFILE_INDEX`; `--arm-live` also sets `LIVE_TRADING=true`,
+`OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`, and `IMPERIAL_LIVE=true`.
 
 ## AI Providers
 

@@ -19,7 +19,10 @@ clawd-code trade "SOL funding rate?"
 clawd-code trade "short SOL $100"
 clawd-code trade "long ETH $50"
 clawd-code imperial status
+clawd-code imperial auth imperial --write-env
+clawd-code imperial auth imperial --arm-live
 clawd-code imperial positions
+clawd-code imperial revoke
 ```
 
 **Preflight checks (all required for live):**
@@ -35,6 +38,9 @@ clawd-code imperial positions
 
 `IMPERIAL_JWT` is delegated trading access for the configured wallet/profile.
 Never print or commit it.
+`imperial auth <wallet-name>` signs the Imperial mobile-connect message with the
+local wallet file and exchanges the one-time code for a JWT. `--write-env`
+persists the masked session settings; `--arm-live` persists the live gates too.
 
 ### RESEARCH MODE
 Multi-agent deep research with the configured provider. The default provider is
@@ -73,6 +79,7 @@ clawd-code voice "Clawd Code is operational"
 | `clawd-code funding` | Funding rate dashboard |
 | `clawd-code trade "<intent>"` | Trade/funding/position workflow |
 | `clawd-code imperial status` | Imperial router readiness/profile status |
+| `clawd-code imperial auth <wallet> --write-env` | Persist Imperial mobile JWT settings |
 | `clawd-code research "<prompt>"` | Research mode |
 | `clawd-code image "<prompt>"` | Image mode |
 | `clawd-code repl` | Interactive model/provider session |
