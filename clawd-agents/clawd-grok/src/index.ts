@@ -412,7 +412,7 @@ function parseHeadlessOutputFormat(value: string): HeadlessOutputFormat {
 program
   .name("clawd")
   .description(
-    "🦞 Clawd Grok — The world's first Grok-powered Solana perps CLI. Phoenix DEX perpetual futures, xAI Grok reasoning, strategy runners, paper trading. Grok the markets. Claw the profits.",
+    "Clawd Grok — a multi-provider Clawd Code harness with Solana/Phoenix tools, model routing, sub-agents, Telegram, MCP, and optional camsnap.",
   )
   .version(packageJson.version)
   .argument("[message...]", "Initial message to send")

@@ -1,7 +1,7 @@
 {
   "name": "clawd-grok",
   "version": "1.0.0",
-  "description": "⚡ The world's first Grok-powered Solana perpetual futures CLI agent — trade Phoenix DEX perps with xAI Grok reasoning, real-time market data, strategy runners, and paper trading. Built with Bun + OpenTUI.",
+  "description": "Multi-provider Clawd Code harness with model/provider routing, Solana/Phoenix tools, sub-agents, Telegram, MCP, and optional camsnap.",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
