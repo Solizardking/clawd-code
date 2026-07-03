@@ -36,6 +36,21 @@ function createScheduleToolSet(overrides?: {
 }
 
 describe("schedule daemon tools", () => {
+  it("keeps camsnap tools disabled unless the camsnap toolset is selected", () => {
+    const disabled = createTools(new BashTool("/tmp"), {} as never, "agent") as Record<string, unknown>;
+    const enabled = createTools(new BashTool("/tmp"), {} as never, "agent", { toolsets: ["camsnap"] }) as Record<
+      string,
+      unknown
+    >;
+
+    expect(disabled).not.toHaveProperty("camsnap_snap");
+    expect(enabled).toHaveProperty("camsnap_discover");
+    expect(enabled).toHaveProperty("camsnap_snap");
+    expect(enabled).toHaveProperty("camsnap_clip");
+    expect(enabled).toHaveProperty("camsnap_doctor");
+    expect(enabled).toHaveProperty("camsnap_watch");
+  });
+
   it("describes bash sandbox constraints when shuru mode is enabled", () => {
     const tools = createTools(new BashTool("/tmp", { sandboxMode: "shuru" }), {} as never, "agent");
     const bashTool = tools.bash as { description?: string };

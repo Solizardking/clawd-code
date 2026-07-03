@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MODEL, getEffectiveReasoningEffort, getModelInfo, getSupportedReasoningEfforts, normalizeModelId, } from "./models";
+import { DEFAULT_MODEL, getEffectiveReasoningEffort, getModelInfo, getSupportedReasoningEfforts, normalizeModelId, resolveModelRoute, } from "./models";
 describe("models", () => {
     it("keeps the default model on a canonical reasoning id", () => {
         expect(DEFAULT_MODEL).toBe("grok-4.3");
@@ -16,6 +16,13 @@ describe("models", () => {
         expect(getModelInfo("grok-4-1-fast")?.id).toBe("grok-4.3");
         expect(getModelInfo("grok-4.20-multi-agent")?.responsesOnly).toBe(true);
         expect(getModelInfo("grok-4.20-multi-agent")?.supportsClientTools).toBe(false);
+    });
+    it("routes model-prefixed ids to their provider and canonical model", () => {
+        expect(resolveModelRoute("zai:glm-5.2")).toEqual({ provider: "zai", modelId: "glm-5.2" });
+        expect(resolveModelRoute("openrouter:auto")).toEqual({ provider: "openrouter", modelId: "auto" });
+    });
+    it("uses known model metadata when no provider is explicit", () => {
+        expect(resolveModelRoute("glm-5-turbo")).toEqual({ provider: "zai", modelId: "glm-5-turbo" });
     });
     it("reports supported reasoning-effort levels", () => {
         expect(getSupportedReasoningEfforts("grok-3-mini")).toEqual(["low", "high"]);
