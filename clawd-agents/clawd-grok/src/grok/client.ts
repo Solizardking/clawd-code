@@ -1,9 +1,35 @@
-import { createXai, type XaiProvider } from "@ai-sdk/xai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createXai, type XaiProvider as NativeXaiProvider } from "@ai-sdk/xai";
 import { generateText } from "ai";
 import { getReasoningEffortForModel } from "../utils/settings";
-import { getEffectiveReasoningEffort, getModelInfo, type ModelDefinition, normalizeModelId } from "./models";
+import {
+  DEFAULT_PROVIDER,
+  getEffectiveReasoningEffort,
+  getModelInfo,
+  getProviderDefinition,
+  type ModelDefinition,
+  normalizeModelId,
+  type ProviderId,
+  resolveModelRoute,
+} from "./models";
 
-export type { XaiProvider };
+type XaiChatModel = ReturnType<NativeXaiProvider["chat"]>;
+type XaiResponsesModel = ReturnType<NativeXaiProvider["responses"]>;
+type XaiImageModel = ReturnType<NativeXaiProvider["image"]>;
+type XaiVideoModel = ReturnType<NativeXaiProvider["video"]>;
+
+export interface ClawdProvider {
+  id: ProviderId;
+  name: string;
+  baseURL?: string;
+  chat: (modelId: string) => XaiChatModel;
+  responses?: NativeXaiProvider["responses"];
+  image?: (modelId: string) => XaiImageModel;
+  video?: (modelId: string) => XaiVideoModel;
+  tools?: NativeXaiProvider["tools"];
+}
+
+export type { ClawdProvider as XaiProvider };
 
 const DEFAULT_TITLE_MODEL = "grok-4.20-non-reasoning";
 const DEFAULT_RECAP_MODEL = "grok-4.20-non-reasoning";
@@ -17,9 +43,10 @@ const RETIRED_MODEL_MAP: Record<string, string> = {
 type ProviderReasoningEffort = "low" | "medium" | "high" | "xhigh";
 
 export interface ResolvedModelRuntime {
-  model: ReturnType<XaiProvider["chat"]> | ReturnType<XaiProvider["responses"]>;
+  model: XaiChatModel | XaiResponsesModel;
   modelId: string;
   modelInfo: ModelDefinition | undefined;
+  provider: ProviderId;
   providerOptions?: {
     xai?: {
       reasoningEffort?: ProviderReasoningEffort;
@@ -27,27 +54,87 @@ export interface ResolvedModelRuntime {
   };
 }
 
-export function createProvider(apiKey: string, baseURL?: string): XaiProvider {
-  return createXai({
+export function createProvider(
+  apiKey: string,
+  baseURL?: string,
+  providerId: ProviderId = DEFAULT_PROVIDER,
+): ClawdProvider {
+  const definition = getProviderDefinition(providerId);
+  const resolvedBaseURL = baseURL || definition.defaultBaseURL || undefined;
+
+  if (providerId === "xai") {
+    const native = createXai({
+      apiKey,
+      baseURL: resolvedBaseURL || process.env.AI_BASE_URL || process.env.GROK_BASE_URL || "https://api.x.ai/v1",
+    });
+    return {
+      id: "xai",
+      name: definition.name,
+      baseURL: resolvedBaseURL,
+      chat: native.chat.bind(native),
+      responses: native.responses.bind(native),
+      image: native.image.bind(native),
+      video: native.video.bind(native),
+      tools: native.tools,
+    };
+  }
+
+  const compatible = createOpenAICompatible({
+    name: providerId,
     apiKey,
-    baseURL: baseURL || process.env.AI_BASE_URL || process.env.GROK_BASE_URL || "https://api.x.ai/v1",
+    baseURL: resolvedBaseURL ?? "",
+    includeUsage: true,
   });
+
+  return {
+    id: providerId,
+    name: definition.name,
+    baseURL: resolvedBaseURL,
+    chat: (modelId: string) => compatible.chatModel(modelId) as XaiChatModel,
+  };
 }
 
-export function resolveModelRuntime(provider: XaiProvider, modelId: string): ResolvedModelRuntime {
-  const normalizedModelId = RETIRED_MODEL_MAP[modelId] ?? normalizeModelId(modelId);
+export function resolveModelRuntime(provider: ClawdProvider, modelId: string): ResolvedModelRuntime {
+  const routed = resolveModelRoute(RETIRED_MODEL_MAP[modelId] ?? modelId, provider.id);
+  const normalizedModelId = normalizeModelId(routed.modelId);
   const info = getModelInfo(normalizedModelId);
   const chatModel = provider.chat(normalizedModelId);
   const normalizedFromAlias = normalizedModelId !== modelId;
   const configuredEffort = getReasoningEffortForModel(normalizedModelId);
-  const reasoningEffort = normalizedFromAlias
-    ? undefined
-    : (getEffectiveReasoningEffort(normalizedModelId, configuredEffort) as ProviderReasoningEffort | undefined);
+  const reasoningEffort = provider.id === "xai" && !normalizedFromAlias
+    ? (getEffectiveReasoningEffort(normalizedModelId, configuredEffort) as ProviderReasoningEffort | undefined)
+    : undefined;
 
   return {
     model: chatModel,
     modelId: normalizedModelId,
     modelInfo: info,
+    provider: routed.provider,
+    providerOptions: reasoningEffort
+      ? {
+          xai: {
+            reasoningEffort,
+          },
+        }
+      : undefined,
+  };
+}
+
+export function resolveResponsesRuntime(provider: ClawdProvider, modelId: string): ResolvedModelRuntime {
+  const runtime = resolveModelRuntime(provider, modelId);
+  if (!provider.responses) {
+    return runtime;
+  }
+  const normalizedFromAlias = runtime.modelId !== modelId;
+  const configuredEffort = getReasoningEffortForModel(runtime.modelId);
+  const reasoningEffort =
+    provider.id === "xai" && !normalizedFromAlias
+      ? (getEffectiveReasoningEffort(runtime.modelId, configuredEffort) as ProviderReasoningEffort | undefined)
+      : undefined;
+
+  return {
+    ...runtime,
+    model: provider.responses(runtime.modelId),
     providerOptions: reasoningEffort
       ? {
           xai: {
@@ -65,7 +152,7 @@ export interface TitleResult {
 }
 
 export async function generateTitle(
-  provider: XaiProvider,
+  provider: ClawdProvider,
   userMessage: string,
   modelId = DEFAULT_TITLE_MODEL,
 ): Promise<TitleResult> {
@@ -104,7 +191,7 @@ export interface RecapResult {
 }
 
 export async function generateRecap(
-  provider: XaiProvider,
+  provider: ClawdProvider,
   prompt: string,
   signal?: AbortSignal,
   modelId = DEFAULT_RECAP_MODEL,
