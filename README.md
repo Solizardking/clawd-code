@@ -127,6 +127,8 @@ OPENROUTER_NEMO_MODEL1=nvidia/nemotron-3-ultra-550b-a55b:free
 OPENROUTER_NEMO_MODEL2=nvidia/nemotron-3-ultra-550b-a55b
 OPENROUTER_NEMO_MODEL3=nvidia/nemotron-3-super-120b-a12b:free
 OPENROUTER_FABLE5=anthropic/claude-fable-5
+OPENROUTER_FABLE_LATEST=~anthropic/claude-fable-latest
+# Current adapter also accepts the legacy typo:
 OPENROUTER_FABLE_LATESY=~anthropic/claude-fable-latest
 ```
 
