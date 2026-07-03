@@ -102,7 +102,7 @@ export function Sidebar() {
       >
         {sidebarOpen && (
           <span className="flex-1 text-sm font-semibold text-surface-100 px-4 py-3 truncate">
-            Claude Code
+            Clawd Code
           </span>
         )}
 
