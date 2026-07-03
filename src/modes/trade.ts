@@ -423,6 +423,8 @@ export class TradeMode {
   }
 
   private async fetchFundingRates(): Promise<void> {
+    if (await this.fetchFundingRatesViaImperial()) return;
+
     console.log('\n[TRADE MODE] Fetching funding rates via Vulcan CLI...');
     
     // Try Vulcan CLI first, then fall back to Helius RPC
@@ -781,6 +783,12 @@ print(json.dumps(markets, indent=2))
   }
 
   private async showPosition(): Promise<void> {
+    const imperial = this.imperialConfig();
+    if (imperial.enabled && imperial.wallet) {
+      await this.showImperialPositions();
+      return;
+    }
+
     console.log('\n[TRADE MODE] Fetching positions via Vulcan...');
     
     const result = await this.runVulcanCommand('position', ['list']);
@@ -820,15 +828,21 @@ print(json.dumps(markets, indent=2))
   }
 
   private async showStatus(): Promise<void> {
+    const imperial = this.imperialConfig();
+    const gates = this.gateState();
+    const readiness = getImperialLiveReadiness(imperial, gates);
     console.log('\n[TRADE MODE] Status:');
-    console.log('  Mode:', this.config.liveTrading ? '🚀 LIVE' : '📄 PAPER');
+    console.log('  Mode:', gates.liveTrading && !gates.perpsSimOnly ? '🚀 LIVE' : '📄 PAPER');
     console.log('  RPC:', this.config.rpcUrl);
     console.log('  Vulcan CLI:', this.getVulcanCommand());
     console.log('  Max Notional:', '$' + (this.config.perpsMaxNotional || 250));
     console.log('  Max Leverage:', (this.config.perpsMaxLeverage || 3) + '×');
+    console.log('  Imperial:', `${imperial.enabled ? 'enabled' : 'disabled'} / ${imperialUnderwriterLabel(imperial.defaultUnderwriter)} / profile ${imperial.profileIndex}`);
+    console.log('  Imperial Live Ready:', readiness.ok ? 'yes' : 'no');
     console.log('\n[TRADE MODE] Commands:');
     console.log('  funding, ticker, orderbook — market data');
     console.log('  short SOL $100, long SOL $100 — place order');
+    console.log('  imperial status, imperial balances, imperial positions — Imperial router');
     console.log('  scan, signal — composite market scan');
     console.log('  position, portfolio — view positions');
     console.log('  paper buy/sell — simulated trading');

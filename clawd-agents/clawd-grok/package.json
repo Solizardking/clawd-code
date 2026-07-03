@@ -86,6 +86,7 @@
   },
   "dependencies": {
     "@ai-sdk/mcp": "^1.0.25",
+    "@ai-sdk/openai-compatible": "^2.0.48",
     "@ai-sdk/provider-utils": "^4.0.21",
     "@ai-sdk/xai": "^3.0.93",
     "@coral-xyz/anchor": "^0.30.1",

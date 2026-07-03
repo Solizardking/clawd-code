@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
+import { getImperialConfig, getImperialLiveReadiness, getTradingGateState, imperialUnderwriterLabel } from './imperial.js';
 import { createXaiClient } from './xai.js';
 
 export interface VerifyResult {
@@ -33,6 +34,7 @@ export class EnvironmentVerifier {
     this.checkPhoenixUrl();
     this.checkVulcanCli();
     this.checkSafetyGates();
+    this.checkImperialConfig();
     this.checkConfigFile();
     this.checkWorkspace();
     return this.results;
@@ -150,31 +152,70 @@ export class EnvironmentVerifier {
   }
 
   private checkSafetyGates(): void {
-    const live = process.env.LIVE_TRADING === 'true';
-    const confirmed = process.env.OPERATOR_CONFIRMED === 'true';
-    const sim = process.env.PERPS_SIM_ONLY === 'true';
+    const gates = getTradingGateState(process.env);
 
-    if (live && !confirmed) {
+    if (gates.liveTrading && !gates.operatorConfirmed) {
       this.results.push({
         name: 'Safety gates',
         ok: false,
         message: 'LIVE_TRADING=true but OPERATOR_CONFIRMED=false',
         remedy: 'Set OPERATOR_CONFIRMED=true after reviewing safety docs',
       });
-    } else if (live && !sim) {
+    } else if (gates.liveTrading && gates.perpsSimOnly) {
       this.results.push({
         name: 'Safety gates',
         ok: false,
-        message: 'LIVE_TRADING=true but PERPS_SIM_ONLY=false',
+        message: 'LIVE_TRADING=true but PERPS_SIM_ONLY is not false',
         remedy: 'Confirm PERPS_SIM_ONLY=false to enable real execution',
       });
     } else {
       this.results.push({
         name: 'Safety gates',
         ok: true,
-        message: live ? 'LIVE mode (all gates armed)' : 'PAPER mode (default)',
+        message: gates.liveTrading ? 'LIVE mode (all gates armed)' : 'PAPER mode (default)',
       });
     }
+  }
+
+  private checkImperialConfig(): void {
+    const config = getImperialConfig(process.env);
+    const gates = getTradingGateState(process.env);
+
+    if (!config.enabled && !config.live) {
+      this.results.push({
+        name: 'Imperial router',
+        ok: true,
+        message: 'disabled (optional)',
+      });
+      return;
+    }
+
+    if (config.profileIndex < 0 || config.profileIndex > 5) {
+      this.results.push({
+        name: 'Imperial router',
+        ok: false,
+        message: 'IMPERIAL_PROFILE_INDEX outside 0..5',
+        remedy: 'Set IMPERIAL_PROFILE_INDEX to one of 0,1,2,3,4,5',
+      });
+      return;
+    }
+
+    const readiness = getImperialLiveReadiness(config, gates);
+    if (config.live && !readiness.ok) {
+      this.results.push({
+        name: 'Imperial router',
+        ok: false,
+        message: `live requested; ${readiness.reasons[0]}`,
+        remedy: 'Set all live gates plus IMPERIAL_WALLET, IMPERIAL_JWT, and IMPERIAL_PROFILE_INDEX',
+      });
+      return;
+    }
+
+    this.results.push({
+      name: 'Imperial router',
+      ok: true,
+      message: `${config.live ? 'live ready' : 'read/paper'} via ${imperialUnderwriterLabel(config.defaultUnderwriter)} profile ${config.profileIndex}`,
+    });
   }
 
   private checkConfigFile(): void {
