@@ -11,7 +11,7 @@ __pycache__/
 venv/
 backend/venv/
 *.egg-info/
-
+.env.local
 # Environment variables
 .env
 .env.*
