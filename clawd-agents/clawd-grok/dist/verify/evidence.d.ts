@@ -1,0 +1,10 @@
+import type { VerifyArtifact } from "../types/index";
+import type { VerifyProjectProfile } from "./recipes";
+export declare const VERIFY_ARTIFACT_DIR = ".grok/verify-artifacts";
+export declare const VERIFY_SCREENSHOT_PATH = ".grok/verify-artifacts/verify-screenshot.png";
+export declare const VERIFY_VIDEO_PATH = ".grok/verify-artifacts/verify-smoke.webm";
+export declare const VERIFY_LOG_PATH = ".grok/verify-artifacts/app.log";
+export declare function getVerifyArtifacts(): VerifyArtifact[];
+export declare function buildReadinessGuidance(profile: VerifyProjectProfile): string[];
+export declare function buildBrowserGuidance(profile: VerifyProjectProfile): string[];
+export declare function buildEvidenceGuidance(): string[];

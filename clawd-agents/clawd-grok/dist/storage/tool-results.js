@@ -1,0 +1,50 @@
+export function extractToolResultFromOutput(output) {
+    if (!output || typeof output !== "object")
+        return null;
+    if ("success" in output) {
+        const result = output;
+        return {
+            success: Boolean(result.success),
+            output: result.output,
+            error: result.error,
+            diff: result.diff,
+            plan: result.plan,
+            task: result.task,
+            delegation: result.delegation,
+            backgroundProcess: result.backgroundProcess,
+            media: result.media,
+            computer: result.computer,
+        };
+    }
+    if ("type" in output && output.type === "json" && "value" in output) {
+        return extractToolResultFromOutput(output.value);
+    }
+    if ("type" in output && output.type === "error-text" && "value" in output) {
+        return {
+            success: false,
+            error: String(output.value),
+        };
+    }
+    if ("type" in output && output.type === "text" && "value" in output) {
+        return {
+            success: true,
+            output: String(output.value),
+        };
+    }
+    return null;
+}
+export function getOutputKind(output) {
+    if (output && typeof output === "object" && "type" in output && typeof output.type === "string") {
+        return output.type;
+    }
+    return "json";
+}
+export function isOutputSuccess(output) {
+    if (!output || typeof output !== "object")
+        return true;
+    if ("type" in output) {
+        return !String(output.type).startsWith("error");
+    }
+    return true;
+}
+//# sourceMappingURL=tool-results.js.map

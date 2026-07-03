@@ -1,0 +1,33 @@
+import type { TextareaRenderable } from "@opentui/core";
+import { type RefObject } from "react";
+import type { McpCatalogEntry } from "../mcp/catalog";
+import type { McpServerConfig } from "../utils/settings";
+import type { McpBrowserRow, McpEditorDraft, McpEditorField } from "./mcp-modal-types";
+import type { Theme } from "./theme";
+export declare function buildMcpBrowseRows(servers: McpServerConfig[], catalog: McpCatalogEntry[], query: string): McpBrowserRow[];
+export declare function McpBrowserModal({ t, width, height, selectedIndex, searchQuery, rows, }: {
+    t: Theme;
+    width: number;
+    height: number;
+    selectedIndex: number;
+    searchQuery: string;
+    rows: McpBrowserRow[];
+}): import("react").ReactNode;
+export declare function McpEditorModal({ t, width, height, draft, focusedField, syncKey, error, title, labelRef, urlRef, headersRef, commandRef, argsRef, cwdRef, envRef, onSubmit, }: {
+    t: Theme;
+    width: number;
+    height: number;
+    draft: McpEditorDraft;
+    focusedField: McpEditorField;
+    syncKey: number;
+    error: string | null;
+    title: string;
+    labelRef: RefObject<TextareaRenderable | null>;
+    urlRef: RefObject<TextareaRenderable | null>;
+    headersRef: RefObject<TextareaRenderable | null>;
+    commandRef: RefObject<TextareaRenderable | null>;
+    argsRef: RefObject<TextareaRenderable | null>;
+    cwdRef: RefObject<TextareaRenderable | null>;
+    envRef: RefObject<TextareaRenderable | null>;
+    onSubmit: () => void;
+}): import("react").ReactNode;

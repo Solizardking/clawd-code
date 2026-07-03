@@ -1,0 +1,1 @@
+{"version":3,"file":"mcp-modal-types.js","sourceRoot":"","sources":["../../src/ui/mcp-modal-types.ts"],"names":[],"mappings":"AAqBA,MAAM,UAAU,yBAAyB;IACvC,OAAO;QACL,KAAK,EAAE,EAAE;QACT,SAAS,EAAE,OAAO;QAClB,GAAG,EAAE,EAAE;QACP,WAAW,EAAE,EAAE;QACf,OAAO,EAAE,EAAE;QACX,QAAQ,EAAE,EAAE;QACZ,GAAG,EAAE,EAAE;QACP,OAAO,EAAE,EAAE;KACZ,CAAC;AACJ,CAAC"}

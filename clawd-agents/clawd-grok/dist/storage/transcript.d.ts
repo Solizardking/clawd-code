@@ -1,0 +1,12 @@
+import type { ModelMessage } from "ai";
+import type { ChatEntry } from "../types/index";
+import { type LoadedTranscriptState, type PersistedCompaction } from "./transcript-view";
+export declare function loadLatestCompaction(sessionId: string): PersistedCompaction | null;
+export declare function loadRawTranscript(sessionId: string): ModelMessage[];
+export declare function loadTranscriptState(sessionId: string): LoadedTranscriptState;
+export declare function loadTranscript(sessionId: string): ModelMessage[];
+export declare function getNextMessageSequence(sessionId: string): number;
+export declare function appendMessages(sessionId: string, messages: ModelMessage[]): number[];
+export declare function appendSystemMessage(sessionId: string, content: string): number | null;
+export declare function appendCompaction(sessionId: string, firstKeptSeq: number, summary: string, tokensBefore: number): void;
+export declare function buildChatEntries(sessionId: string): ChatEntry[];
