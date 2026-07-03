@@ -1,9 +1,9 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, statSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { parseEnvFile, parseGrokConfigToml, maskSecret } from './env.js';
+import { parseEnvFile, parseGrokConfigToml, maskSecret, upsertEnvFile } from './env.js';
 
 let tmpDir: string;
 
@@ -112,6 +112,24 @@ describe('parseGrokConfigToml', () => {
     const path = write('config.toml', '[cli]\nauto_update = "false"\n');
     const result = parseGrokConfigToml(path);
     assert.equal(result.flat.CLAWD_NO_AUTO_UPDATE, 'true');
+  });
+});
+
+describe('upsertEnvFile', () => {
+  test('updates existing keys and appends missing keys', () => {
+    const path = write('.env', 'FOO=old\n# keep me\nexport BAR=old\n');
+
+    upsertEnvFile(path, { FOO: 'new', BAR: 'newer', BAZ: 'added' });
+
+    assert.deepEqual(parseEnvFile(path), { FOO: 'new', BAR: 'newer', BAZ: 'added' });
+  });
+
+  test('writes env files with 0600 permissions', () => {
+    const path = join(tmpDir, '.env');
+
+    upsertEnvFile(path, { FOO: 'bar' });
+
+    assert.equal(statSync(path).mode & 0o777, 0o600);
   });
 });
 

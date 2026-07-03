@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 const CONFIG_ENV_FILE = join(homedir(), '.clawd-code', '.env');
 const LOCAL_ENV_FILE = resolve(process.cwd(), '.env');
@@ -36,6 +36,36 @@ export function parseEnvFile(path: string): Record<string, string> {
   }
 
   return vars;
+}
+
+export function upsertEnvFile(path: string, values: Record<string, string>): void {
+  const existing = existsSync(path) ? readFileSync(path, 'utf-8').split('\n') : [];
+  const remaining = new Map(Object.entries(values));
+  const lines = existing.map((rawLine) => {
+    const line = rawLine.trim();
+    const normalized = line.startsWith('export ') ? line.slice('export '.length).trim() : line;
+    const separator = normalized.indexOf('=');
+    if (!line || line.startsWith('#') || separator === -1) return rawLine;
+
+    const key = normalized.slice(0, separator).trim();
+    if (!remaining.has(key)) return rawLine;
+
+    const next = `${key}=${remaining.get(key) ?? ''}`;
+    remaining.delete(key);
+    return rawLine.trim().startsWith('export ') ? `export ${next}` : next;
+  });
+
+  for (const [key, value] of remaining) {
+    lines.push(`${key}=${value}`);
+  }
+
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${lines.join('\n').replace(/\n+$/g, '')}\n`, { mode: 0o600 });
+  chmodSync(path, 0o600);
+}
+
+export function upsertClawdEnv(values: Record<string, string>): void {
+  upsertEnvFile(CONFIG_ENV_FILE, values);
 }
 
 /**

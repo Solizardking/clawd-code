@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import { generateKeyPairSync } from 'crypto';
+import { createPrivateKey, generateKeyPairSync, sign as cryptoSign } from 'crypto';
 
 export type WalletRecord = {
   name: string;
@@ -35,7 +35,11 @@ function base64UrlToBytes(value: string): Uint8Array {
   return Uint8Array.from(Buffer.from(padded.replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
 }
 
-function base58Encode(bytes: Uint8Array): string {
+function bytesToBase64Url(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+export function base58Encode(bytes: Uint8Array): string {
   const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   const digits = [0];
 
@@ -58,6 +62,44 @@ function base58Encode(bytes: Uint8Array): string {
   }
 
   return digits.reverse().map((digit) => alphabet[digit]).join('');
+}
+
+export function loadWalletKeypair(name = 'default'): WalletRecord & { secretKey: number[] } {
+  const path = walletPath(name);
+  if (!existsSync(path)) {
+    throw new Error(`Wallet not found: ${path}`);
+  }
+
+  const secret = Uint8Array.from(JSON.parse(readFileSync(path, 'utf-8')));
+  const keypair = keypairFromSecret(secret);
+  return {
+    name,
+    publicKey: keypair.publicKey,
+    secretKey: keypair.secretKey,
+    path,
+  };
+}
+
+export function signWalletMessage(name: string, message: string): { wallet: string; message: string; signature: string } {
+  const keypair = loadWalletKeypair(name);
+  const secret = Uint8Array.from(keypair.secretKey);
+  const seed = secret.slice(0, 32);
+  const publicKey = secret.slice(32);
+  const privateKey = createPrivateKey({
+    format: 'jwk',
+    key: {
+      kty: 'OKP',
+      crv: 'Ed25519',
+      d: bytesToBase64Url(seed),
+      x: bytesToBase64Url(publicKey),
+    },
+  });
+  const signature = cryptoSign(null, Buffer.from(message), privateKey);
+  return {
+    wallet: keypair.publicKey,
+    message,
+    signature: base58Encode(signature),
+  };
 }
 
 function keypairFromSecret(secret: Uint8Array): { publicKey: string; secretKey: number[] } {

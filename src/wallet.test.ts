@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { createWallet, listWallets } from './wallet.js';
+import { createWallet, listWallets, loadWalletKeypair, signWalletMessage } from './wallet.js';
 
 let tmpDir: string;
 const originalWalletDir = process.env.CLAWD_WALLET_DIR;
@@ -74,5 +74,23 @@ describe('wallet', () => {
       assert.ok(match, `expected a created wallet named ${listed[i].name}`);
       assert.equal(listed[i].publicKey, match?.publicKey);
     }
+  });
+
+  test('loadWalletKeypair returns the stored secret without changing the public key', () => {
+    const created = createWallet('signer');
+    const loaded = loadWalletKeypair('signer');
+
+    assert.equal(loaded.publicKey, created.publicKey);
+    assert.equal(loaded.secretKey.length, 64);
+  });
+
+  test('signWalletMessage signs an Imperial connect message as base58', () => {
+    const created = createWallet('imperial');
+    const message = `imperial:mobile-connect:${created.publicKey}:nonce-1`;
+    const signed = signWalletMessage('imperial', message);
+
+    assert.equal(signed.wallet, created.publicKey);
+    assert.equal(signed.message, message);
+    assert.match(signed.signature, /^[1-9A-HJ-NP-Za-km-z]+$/);
   });
 });
