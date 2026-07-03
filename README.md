@@ -51,33 +51,26 @@ npm link
 
 Canonical local root: `/Users/8bit/clawd-code`.
 
-Clawd Code is always NemoClaw-enabled. The active OpenRouter implementation is
-`src/openrouter.ts`, with deterministic Nemo auto routing plus explicit Fable
-aliases. If an optional `NemoClaw/` sidecar package is added to this checkout,
-keep `NemoClaw/src/`, `NemoClaw/README.md`, and this README in sync with the
-runtime adapter.
+There is no `NemoClaw/` sidecar package in this checkout — OpenRouter Nemo
+auto routing and explicit Fable aliases are built directly into
+`src/openrouter.ts`. `src/`'s `tsconfig.json` `include` is intentionally
+scoped to the CLI's real 15-file import closure plus `src/modes/`; it does
+not build the entire directory tree.
 
 | Path | Status in this checkout | Purpose |
 | --- | --- | --- |
-| `.github/` | optional / not present | GitHub Actions workflows and issue/PR templates |
-| `clawd-plugin/` | present | Plugin manifest, MCP config, bundled skills/reference docs |
-| `docker/` | optional / not present | Container packaging and deployment helpers |
-| `docs/` | present | Installer and repository layout notes |
-| `NemoClaw/` | optional / not present | Sidecar package for NemoClaw routing experiments when present |
-| `NemoClaw/src/` | optional / not present | Sidecar source tree; core runtime currently lives in `src/openrouter.ts` |
-| `outputs/` | ignored runtime output | Generated code, media, and reports; never commit secrets or artifacts |
-| `prompts/` | optional / not present | Build and implementation prompt packs |
-| `quantitative-signal-discovery-agent/` | present | Research/analysis project |
-| `scripts/` | optional / not present | Release, smoke-test, and maintenance scripts |
-| `son_of_anton_program/` | present | Solana program project |
-| `src/` | present | CLI runtime, provider adapters, modes, tests |
-| `web/` | present | Web client package |
+| `clawd-plugin/` | present | Plugin manifest, MCP config, bundled skills/reference docs — see [Clawd Code Plugin](#clawd-code-plugin) |
+| `docs/` | present | Install/smoke-test notes (`docs/INSTALL.md`) |
+| `quantitative-signal-discovery-agent/` | present | Independent Python research/analysis project (own `.git`, not wired into the CLI build) |
+| `son_of_anton_program/` | present | Independent Anchor/Solana program project (own `.git`, not wired into the CLI build) |
+| `src/` | present | CLI runtime, provider adapters, modes, tests — see [CLI source layout](#cli-source-layout) |
+| `web/` | present | Next.js web client — see [Web Client](#web-client) |
+| `dist/` | git-ignored | Build output from `npm run build`; not committed |
 | `.gitattributes` | present | Git attributes |
 | `agent.md` | present | Agent-facing summary |
-| `CLAUDE.md` | present | Claude/agent local instructions |
+| `CLAUDE.md` | present | Compatibility shim pointing agent runtimes at `CLAWD.md` |
 | `clawd.json` | present | Agent metadata and system profile |
-| `CLAWD.md` | present | Operator-facing Clawd notes |
-| `gitpretty-apply.sh` | optional / not present | Optional patch formatting helper |
+| `CLAWD.md` | present | Canonical operator/agent harness instructions |
 | `IDENTITY.md` | present | Identity and operating profile |
 | `install.sh` | present | Installer and config bootstrap |
 | `LICENSE` | present | MIT license |
@@ -86,7 +79,39 @@ runtime adapter.
 | `README.md` | present | Primary project documentation |
 | `Skill.md` | present | Skill/package map |
 | `SOUL.md` | present | Agent persona notes |
-| `tsconfig.json` | present | TypeScript project configuration |
+| `tsconfig.json` | present | TypeScript project configuration, scoped `include` (see above) |
+
+`.github/`, `docker/`, `scripts/`, `prompts/`, `outputs/`, `NemoClaw/`, and
+`gitpretty-apply.sh` are **not present** in this checkout — they were removed
+as unused scaffolding with no inbound references from the build, `install.sh`,
+or CI. If you re-add any of them, wire them into `package.json`/`CLAWD.md`
+explicitly or they'll drift back to dead weight.
+
+### CLI source layout
+
+`src/` builds exactly this closure — `tsc`'s `include` list in
+[tsconfig.json](./tsconfig.json) matches it on purpose:
+
+```text
+src/
+├── cli.ts            # entry point, arg parsing, mode dispatch
+├── commands.ts        # /wallet /perps /chain /chart /arena /goal ... slash commands
+├── env.ts              # .env + ~/.grok/config.toml loading and precedence
+├── zai.ts               # Z.AI client — chat, streaming, vision, image, slide agent
+├── xai.ts                # xAI/Grok client
+├── deepseek.ts             # DeepSeek client
+├── openrouter.ts            # OpenRouter Nemo/Fable routing (NemoClaw-equivalent)
+├── grok-models.ts            # model catalog, provider defaults (zai first)
+├── wallet.ts                   # local Solana keypair create/list
+├── arena.ts                     # Agent Arena — on-chain identity via Metaplex Core
+├── solana-harness.ts             # read-first Solana RPC harness
+├── x402.ts                        # x402 payment client
+├── verify.ts                       # environment preflight checks
+├── voice-agent.ts                   # xAI Voice Agent client
+├── telegram.ts                       # Telegram relay — chat/CLI only, Z.AI by default
+├── modes/                              # code, trade, research, image, voice, repl, chain, chart
+└── *.test.ts                            # node:test suites (see npm test)
+```
 
 Current OpenRouter routes:
 
@@ -97,6 +122,68 @@ OPENROUTER_NEMO_MODEL3=nvidia/nemotron-3-super-120b-a12b:free
 OPENROUTER_FABLE5=anthropic/claude-fable-5
 OPENROUTER_FABLE_LATESY=~anthropic/claude-fable-latest
 ```
+
+### Web Client
+
+`web/` is a standalone Next.js chat UI for Clawd Code. It's a separate npm
+package (its own `package.json`, `node_modules`, `tsconfig.json`) — it does
+not build or run as part of `npm run build` at the repo root.
+
+```bash
+cd web
+npm install
+cp .env.example .env.local   # set ZAI_API_KEY (default) and/or other provider keys
+npm run dev                  # http://localhost:3000
+npm run build                # production build
+npm run type-check           # tsc --noEmit
+```
+
+- **Provider** — Settings → Provider mirrors the CLI's provider list
+  (`zai` default, `xai`, `anthropic`, `openrouter`, `deepseek`); each
+  provider's key is stored locally and sent to `/api/chat`, which forwards to
+  `NEXT_PUBLIC_API_URL` using that key (or the matching server-side env var
+  as a fallback — `ZAI_API_KEY` by default).
+- **Telegram** — Settings → Telegram lets you fill in `TELEGRAM_BOT_TOKEN` /
+  `TELEGRAM_ALLOWED_CHAT_ID` and shows the exact `clawd-code telegram`
+  invocation to start the relay. The web app itself never runs the relay or
+  touches the bot token server-side — it's CLI-only, chat/CLI relay only, no
+  computer-use.
+- `web/.env.example` documents every provider key plus the Telegram vars.
+
+### Clawd Code Plugin
+
+`clawd-plugin/` bundles the Clawd Code skill set and auto-starts MCP servers
+for live Solana tooling:
+
+```bash
+clawd --plugin-dir ./clawd-plugin
+```
+
+MCP servers configured in [clawd-plugin/.mcp.json](./clawd-plugin/.mcp.json):
+
+| Server | Purpose |
+| --- | --- |
+| `helius` | Solana blockchain access — DAS API, RPC, webhooks, streaming |
+| `clawd-code` | Clawd Code CLI as an MCP server; `ZAI_API_KEY`/`CLAWD_PROVIDER=zai` wired by default |
+| `pump-mcp` | Pump.fun — token creation, AMM swaps, analytics, wallet ops |
+| `phoenix-rise` | Real-time perpetuals orderbook and funding rate data |
+| `DFlow` | Trading API details, schemas, and code examples |
+| `zkcompression` | ZK compressed token and account tools |
+
+Skills in `clawd-plugin/skills/`:
+
+| Skill | Invoke | Covers |
+| --- | --- | --- |
+| `clawd-code` | `/clawd:code` | Clawd Code CLI — code, chain, chart, trade, research, image, voice, REPL, telegram, wallet ops, perps |
+| `build` | `/clawd:build` | Solana development with Helius infrastructure |
+| `dflow` | `/clawd:dflow` | Trading apps combining DFlow with Helius |
+| `phantom` | `/clawd:phantom` | Frontend Solana apps with Phantom wallet |
+| `jupiter` | `/clawd:jupiter` | DeFi apps — Jupiter swaps, lending, limit orders, DCA |
+| `okx` | `/clawd:okx` | OKX DEX integration patterns |
+| `agent-arena` | `/clawd:agent-arena` | Registering/discovering agents on Cheshire Terminal, ATOM reputation |
+| `svm` | `/clawd:svm` | Solana protocol internals — accounts, execution, consensus |
+
+Full details: [clawd-plugin/README.md](./clawd-plugin/README.md).
 
 ## Quick Start
 
@@ -118,6 +205,7 @@ clawd-code research --agents 16 "Solana perps funding arb"
 clawd-code image "cyberpunk Solana trading desk"
 clawd-code repl
 clawd-code arena status
+TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
 ```
 
 ## Commands
@@ -141,6 +229,7 @@ clawd-code arena status
 | `clawd-code repl` | Interactive multi-turn conversation REPL |
 | `clawd-code arena <subcommand>` | Agent Arena — on-chain identity, discovery, reputation |
 | `clawd-code verify` | Run environment checks |
+| `clawd-code telegram` | Start the Telegram relay — chat/CLI only, Z.AI by default, no computer-use |
 
 Slash aliases such as `clawd-code /wallet create` and `clawd-code /perps` still
 work for compatibility.
@@ -392,6 +481,26 @@ For ephemeral token generation (browser/mobile clients):
 import { VoiceAgentClient } from '@solana-clawd/clawd-code/voice-agent';
 const token = await VoiceAgentClient.fetchEphemeralToken(process.env.XAI_API_KEY, 300);
 ```
+
+## Telegram Relay
+
+Long-polls the Telegram Bot API and routes messages from a single allowlisted
+chat into the Z.AI GLM chat pipeline. **Chat/CLI relay only** — there is no
+computer-use, mouse/keyboard, or OS-level control exposed. Unauthorized chats
+are rejected and logged.
+
+```bash
+TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_CHAT_ID=... clawd-code telegram
+```
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Yes | From [@BotFather](https://t.me/BotFather) |
+| `TELEGRAM_ALLOWED_CHAT_ID` | Yes | Only this chat id may reach the bot. Message the bot once, then check `https://api.telegram.org/bot<token>/getUpdates` to find it |
+| `CLAWD_MODEL` | No | Model used for replies (default `glm-5.2`) |
+
+Send `/reset` or `/clear` in the chat to clear the relay's in-memory
+conversation history.
 
 ## Agent Arena
 
