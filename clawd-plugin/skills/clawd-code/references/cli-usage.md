@@ -19,6 +19,7 @@ clawd-code trade "SOL funding rate?"
 clawd-code trade "short SOL $100"
 clawd-code trade "long ETH $50"
 clawd-code imperial status
+clawd-code imperial register imperial --profile 0 --write-env
 clawd-code imperial auth imperial --write-env
 clawd-code imperial auth imperial --arm-live
 clawd-code imperial positions
@@ -38,6 +39,9 @@ clawd-code imperial revoke
 
 `IMPERIAL_JWT` is delegated trading access for the configured wallet/profile.
 Never print or commit it.
+`imperial register <wallet-name> --profile 0 --write-env` activates the Phoenix
+profile for a new local wallet through Imperial's unauthenticated registration
+endpoint and persists wallet/profile settings.
 `imperial auth <wallet-name>` signs the Imperial mobile-connect message with the
 local wallet file and exchanges the one-time code for a JWT. `--write-env`
 persists the masked session settings; `--arm-live` persists the live gates too.
@@ -79,6 +83,7 @@ clawd-code voice "Clawd Code is operational"
 | `clawd-code funding` | Funding rate dashboard |
 | `clawd-code trade "<intent>"` | Trade/funding/position workflow |
 | `clawd-code imperial status` | Imperial router readiness/profile status |
+| `clawd-code imperial register <wallet> --profile 0 --write-env` | Activate and persist a Phoenix profile through Imperial |
 | `clawd-code imperial auth <wallet> --write-env` | Persist Imperial mobile JWT settings |
 | `clawd-code research "<prompt>"` | Research mode |
 | `clawd-code image "<prompt>"` | Image mode |

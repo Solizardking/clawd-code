@@ -102,6 +102,12 @@ export interface ImperialMobileExchangeResponse {
   [key: string]: unknown;
 }
 
+export interface ImperialRegisterPhoenixResponse {
+  profilePda: string;
+  activated: boolean;
+  message: string;
+}
+
 type EnvLike = Record<string, string | undefined>;
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -373,6 +379,16 @@ export class ImperialClient {
       method: 'POST',
       body: JSON.stringify({ wallet: this.config.wallet }),
     }, true);
+  }
+
+  async registerPhoenix(params?: { wallet?: string; profileIndex?: number }): Promise<ImperialRegisterPhoenixResponse> {
+    return this.request<ImperialRegisterPhoenixResponse>('/phoenix/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        wallet: params?.wallet ?? this.config.wallet,
+        profileIndex: params?.profileIndex ?? this.config.profileIndex,
+      }),
+    });
   }
 
   private async request<T = unknown>(path: string, init: RequestInit = {}, needsAuth = false): Promise<T> {

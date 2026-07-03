@@ -146,4 +146,24 @@ describe('Imperial auth client', () => {
     assert.equal((calls[0].init?.headers as Record<string, string>).Authorization, 'Bearer jwt-value');
     assert.equal(calls[0].init?.body, JSON.stringify({ wallet: 'wallet' }));
   });
+
+  test('registerPhoenix posts wallet and profile without bearer auth', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = async (url: string, init?: RequestInit): Promise<Response> => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ profilePda: 'profile-pda', activated: true, message: 'ok' }), { status: 200 });
+    };
+    const client = new ImperialClient(getImperialConfig({
+      IMPERIAL_API_BASE_URL: 'https://imperial.test/api/v1',
+      IMPERIAL_WALLET: 'wallet',
+      IMPERIAL_PROFILE_INDEX: '3',
+    }), fetchImpl);
+
+    const result = await client.registerPhoenix();
+
+    assert.equal(result.profilePda, 'profile-pda');
+    assert.equal(calls[0].url, 'https://imperial.test/api/v1/phoenix/register');
+    assert.equal((calls[0].init?.headers as Record<string, string>).Authorization, undefined);
+    assert.equal(calls[0].init?.body, JSON.stringify({ wallet: 'wallet', profileIndex: 3 }));
+  });
 });

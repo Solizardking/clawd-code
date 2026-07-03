@@ -5,7 +5,6 @@
  */
 
 import { spawn } from 'child_process';
-import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { extname } from 'path';
 import { upsertClawdEnv } from '../env.js';
@@ -135,6 +134,7 @@ export class TradeMode {
       '--market-price',
       '--price',
       '--nonce',
+      '--wallet-address',
     ]);
     const parts: string[] = [];
     for (let i = 0; i < args.length; i++) {
@@ -251,6 +251,10 @@ export class TradeMode {
       await this.revokeImperialSession();
       return;
     }
+    if (action.includes('register') || action.includes('activate')) {
+      await this.registerImperialPhoenixProfile(args);
+      return;
+    }
     if (action.includes('auth') || action.includes('connect') || action.includes('session')) {
       await this.createImperialSession(args);
       return;
@@ -305,6 +309,7 @@ export class TradeMode {
       for (const reason of readiness.reasons) console.log(`  - ${reason}`);
     }
     console.log('\n[IMPERIAL] Commands: imperial funding | imperial balances | imperial positions | imperial orders');
+    console.log('[IMPERIAL] Profile:  imperial register [wallet-name] --profile 0');
     console.log('[IMPERIAL] Auth:     imperial auth [wallet-name] --write-env --arm-live');
   }
 
@@ -395,19 +400,85 @@ export class TradeMode {
     return args.includes(flag);
   }
 
+  private parseProfileIndex(args: string[], fallback: number): number | undefined {
+    const parsed = Number(this.argValue(args, '--profile') ?? this.argValue(args, '--profile-index') ?? fallback);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 5) return undefined;
+    return parsed;
+  }
+
+  private resolveImperialWalletForCommand(args: string[], markers: string[]): { wallet?: string; walletName?: string; error?: string } {
+    const walletAddress = this.argValue(args, '--wallet-address');
+    if (walletAddress) return { wallet: walletAddress };
+
+    const walletName =
+      this.argValue(args, '--wallet') ||
+      this.argValue(args, '--wallet-name') ||
+      this.positionalAfter(args, markers) ||
+      this.imperialConfig().wallet ||
+      'default';
+
+    if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletName)) return { wallet: walletName };
+
+    try {
+      const local = loadWalletKeypair(walletName);
+      return { wallet: local.publicKey, walletName };
+    } catch (error) {
+      return {
+        walletName,
+        error: `Unable to load local wallet "${walletName}": ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  private async registerImperialPhoenixProfile(args: string[]): Promise<void> {
+    const current = this.imperialConfig();
+    const profileIndex = this.parseProfileIndex(args, current.profileIndex);
+    if (profileIndex === undefined) {
+      console.log('\n[IMPERIAL] Register blocked: profile index must be an integer between 0 and 5.');
+      return;
+    }
+
+    const resolved = this.resolveImperialWalletForCommand(args, ['register', 'activate']);
+    if (!resolved.wallet) {
+      console.log(`\n[IMPERIAL] ${resolved.error ?? 'No wallet available for registration.'}`);
+      console.log('[IMPERIAL] Use --wallet-address <pubkey> or create a local wallet: clawd-code wallet create imperial');
+      return;
+    }
+
+    try {
+      const result = await this.imperialClient().registerPhoenix({ wallet: resolved.wallet, profileIndex });
+      console.log('\n[IMPERIAL] Phoenix profile registration complete.');
+      console.log(`  Wallet: ${resolved.wallet.slice(0, 8)}...${resolved.wallet.slice(-4)}`);
+      console.log(`  Profile: ${profileIndex}`);
+      console.log(`  Profile PDA: ${result.profilePda}`);
+      console.log(`  Activated: ${result.activated}`);
+      console.log(`  Message: ${result.message}`);
+      if (this.boolFlag(args, '--write-env')) {
+        upsertClawdEnv({
+          IMPERIAL_ENABLED: 'true',
+          IMPERIAL_WALLET: resolved.wallet,
+          IMPERIAL_PROFILE_INDEX: String(profileIndex),
+        });
+        console.log('[IMPERIAL] Updated ~/.clawd-code/.env with wallet/profile settings.');
+      }
+    } catch (error) {
+      console.log(`[IMPERIAL] Register failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private async createImperialSession(args: string[]): Promise<void> {
     const walletName =
       this.argValue(args, '--wallet') ||
       this.argValue(args, '--wallet-name') ||
       this.positionalAfter(args, ['auth', 'connect', 'session']) ||
       'default';
-    const nonce = this.argValue(args, '--nonce') || randomBytes(16).toString('hex');
+    const nonce = this.argValue(args, '--nonce') || `${Date.now()}`;
     const current = this.imperialConfig();
-    const profileIndex = Number(this.argValue(args, '--profile') ?? this.argValue(args, '--profile-index') ?? current.profileIndex);
+    const profileIndex = this.parseProfileIndex(args, current.profileIndex);
     const writeEnv = this.boolFlag(args, '--write-env') || this.boolFlag(args, '--arm-live');
     const armLive = this.boolFlag(args, '--arm-live');
 
-    if (!Number.isInteger(profileIndex) || profileIndex < 0 || profileIndex > 5) {
+    if (profileIndex === undefined) {
       console.log('\n[IMPERIAL] Auth blocked: profile index must be an integer between 0 and 5.');
       return;
     }
@@ -467,7 +538,11 @@ export class TradeMode {
         console.log('[IMPERIAL] Session not persisted. Re-run with --write-env, or --arm-live to persist live gates too.');
       }
     } catch (error) {
-      console.log(`[IMPERIAL] Auth failed: ${error instanceof Error ? error.message : String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`[IMPERIAL] Auth failed: ${message}`);
+      if (message.includes('401')) {
+        console.log('[IMPERIAL] The local signature verifies, so this likely needs Imperial-side wallet/session eligibility or a dashboard-issued token.');
+      }
     }
   }
 

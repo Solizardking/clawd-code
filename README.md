@@ -428,6 +428,7 @@ Useful Imperial commands:
 
 ```bash
 clawd-code imperial status
+clawd-code imperial register imperial --profile 0 --write-env
 clawd-code imperial auth imperial --write-env
 clawd-code imperial auth imperial --arm-live
 clawd-code imperial funding
@@ -442,6 +443,11 @@ profiles. Never commit it, log it, or share it outside the operator boundary.
 The trade mode also applies local preflight constraints such as allowed symbols,
 maximum notional, maximum leverage, and market-price scaling before any live
 Imperial submission.
+
+For a brand-new local wallet, run
+`imperial register <wallet-name> --profile 0 --write-env` first to activate the
+Phoenix profile under Imperial's unauthenticated registration endpoint and
+persist `IMPERIAL_WALLET`/`IMPERIAL_PROFILE_INDEX`.
 
 `imperial auth <wallet-name>` signs the documented
 `imperial:mobile-connect:{wallet}:{nonce}` message with a local

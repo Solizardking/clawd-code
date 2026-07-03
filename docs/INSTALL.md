@@ -27,6 +27,8 @@ until `LIVE_TRADING=true`, `OPERATOR_CONFIRMED=true`, `PERPS_SIM_ONLY=false`,
 `IMPERIAL_WALLET`, `IMPERIAL_JWT`, and `IMPERIAL_PROFILE_INDEX` are all set.
 `IMPERIAL_JWT` is a delegated trading credential and must stay out of git.
 After creating a local wallet with `clawd-code wallet create imperial`, use
+`clawd-code imperial register imperial --profile 0 --write-env` to activate the
+Phoenix profile and persist the wallet/profile settings. Then use
 `clawd-code imperial auth imperial --write-env` to persist the Imperial session,
 or `clawd-code imperial auth imperial --arm-live` to persist the session and
 live gates in one step.
