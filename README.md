@@ -45,12 +45,15 @@ repository today.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Solizardking/solana-clawd/main/clawd-code/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Solizardking/clawd-code/main/install.sh | sh
 ```
 
 The installer checks for Node.js 18+, installs the `clawd-code` binary, and
 creates `~/.clawd-code/.env` if one does not already exist. The xAI Voice Agent
 mode needs Node.js 22+ for native WebSocket support.
+
+Product page: [cheshireterminal.ai/clawdcode](https://cheshireterminal.ai/clawdcode)
+(also available at `/clawd-code`).
 
 Smoke-test this exact checkout without linking a global binary:
 
@@ -64,8 +67,8 @@ sh /Users/8bit/clawd-code/install.sh
 Manual install:
 
 ```bash
-git clone https://github.com/Solizardking/solana-clawd.git
-cd solana-clawd/clawd-code
+git clone https://github.com/Solizardking/clawd-code.git
+cd clawd-code
 cp .env.example ~/.clawd-code/.env
 npm install
 npm run build

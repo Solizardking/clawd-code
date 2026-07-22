@@ -2,7 +2,8 @@
 set -eu
 
 PACKAGE_NAME="${CLAWD_CODE_PACKAGE:-@solana-clawd/clawd-code}"
-REPO_URL="${CLAWD_CODE_REPO:-https://github.com/Solizardking/solana-clawd.git}"
+# Standalone package repo (package root is the repo root, not a monorepo subdir).
+REPO_URL="${CLAWD_CODE_REPO:-https://github.com/Solizardking/clawd-code.git}"
 REF="${CLAWD_CODE_REF:-main}"
 INSTALL_DIR="${CLAWD_CODE_INSTALL_DIR:-$HOME/.clawd-code/src}"
 CONFIG_DIR="${CLAWD_CODE_CONFIG_DIR:-$HOME/.clawd-code}"

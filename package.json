@@ -45,14 +45,13 @@
     "phoenix",
     "vulcan"
   ],
-  "homepage": "https://github.com/Solizardking/solana-clawd/tree/main/clawd-code#readme",
+  "homepage": "https://github.com/Solizardking/clawd-code#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Solizardking/solana-clawd.git",
-    "directory": "clawd-code"
+    "url": "git+https://github.com/Solizardking/clawd-code.git"
   },
   "bugs": {
-    "url": "https://github.com/Solizardking/solana-clawd/issues"
+    "url": "https://github.com/Solizardking/clawd-code/issues"
   },
   "author": "Solizardking",
   "license": "MIT",
